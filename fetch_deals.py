@@ -34,6 +34,12 @@ CORE = [
     ("sd", "frontpage", SD + "mode=frontpage"),
     ("sd", "popular", SD + "mode=popdeals"),
     ("sd", "freebies", SD + "forumchoice%5B%5D=4"),
+    # Hot Deals forum: community posts land here before they reach the frontpage.
+    ("sd", "hotdeals", SD + "forumchoice%5B%5D=9"),
+    ("dn", "dn-clothing", "https://www.dealnews.com/c202/Clothing-Accessories/?rss=1&sort=time"),
+    ("blog", "9to5toys", "https://9to5toys.com/feed/"),
+    ("blog", "macrumors", "https://feeds.macrumors.com/MacRumors-Deals"),
+    ("blog", "dappered", "https://dappered.com/feed/"),
     ("dn", "dn-hot", "https://www.dealnews.com/?rss=1&sort=hotness"),
     ("dn", "dn-new", "https://www.dealnews.com/?rss=1"),
     ("dn", "dn-computers", "https://www.dealnews.com/c39/Computers/?rss=1&sort=time"),
@@ -41,7 +47,7 @@ CORE = [
     ("camel", "camel", "https://camelcamelcamel.com/top_drops/feed"),
     # One combined request: Reddit rate-limits quickly, and polling every few
     # minutes still catches every new post.
-    ("reddit", "reddit", "https://www.reddit.com/r/buildapcsales+LaptopDeals+frugalmalefashion+FrugalFemaleFashion/new/.rss?limit=100"),
+    ("reddit", "reddit", "https://www.reddit.com/r/buildapcsales+LaptopDeals+frugalmalefashion+FrugalFemaleFashion+deals/new/.rss?limit=100"),
 ]
 # Slickdeals searches, split into three groups; each run fetches one group,
 # so every search refreshes about every 15 minutes without hammering the site.
@@ -181,7 +187,8 @@ def parse_prices(text):
     m = re.search(r"(?:reg\.?|was|list(?: price)?|orig(?:inal|\.)?|msrp|retail|compare at)\s*:?\s*" + MONEY, t, re.I)
     if m:
         was = to_num(m.group(1))
-    prices = [p for p in (to_num(x) for x in re.findall(MONEY, t)) if p is not None]
+    # "$335 off" is a discount, not the price
+    prices = [p for p in (to_num(x) for x in re.findall(MONEY + r"(?!\s*off\b)(?![\d,.])", t)) if p is not None]
     if FREE_ITEM.search(t) and not JUNK_FREE.search(t) and not prices:
         return 0.0, was, 100 if was else pct
     price = next((p for p in prices if p != was), prices[0] if prices else None)
@@ -356,7 +363,31 @@ def parse_reddit(tag, raw):
     return out
 
 
-PARSERS = {"sd": parse_sd, "dn": parse_dn, "bens": parse_bens, "camel": parse_camel, "reddit": parse_reddit}
+BLOG_SRC = {"9to5toys": "9to5Toys", "macrumors": "MacRumors", "dappered": "Dappered"}
+
+
+def parse_blog(tag, raw):
+    """Deal blogs: keep only posts whose headline carries a price or discount."""
+    ns = {"content": "http://purl.org/rss/1.0/modules/content/"}
+    out = []
+    for item in items(raw):
+        title = html.unescape((item.findtext("title") or "").strip())
+        link = (item.findtext("link") or "").strip()
+        if not title or not link:
+            continue
+        if not re.search(r"\$\s?\d|\d+\s?% off|\bsale\b|\bdeal", title, re.I) or re.search(r"\bwin it\b|giveaway", title, re.I):
+            continue
+        body = item.findtext("content:encoded", default="", namespaces=ns) or item.findtext("description") or ""
+        img = re.search(r'<img[^>]+src="([^"]+)"', body)
+        price, was, pct = parse_prices(title)
+        slug = re.sub(r"\W+", "", urllib.parse.urlparse(link).path)[-40:]
+        out.append(base(tag[:2] + slug, BLOG_SRC.get(tag, tag), tag, title, link,
+                        store_from_title(title), price, was, pct,
+                        parse_date(item.findtext("pubDate")), img.group(1) if img else None))
+    return out
+
+
+PARSERS = {"sd": parse_sd, "dn": parse_dn, "bens": parse_bens, "camel": parse_camel, "reddit": parse_reddit, "blog": parse_blog}
 
 
 def flags(d):

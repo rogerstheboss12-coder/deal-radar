@@ -3,302 +3,378 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#16181d">
+<meta name="theme-color" content="#0f1d17">
 <title>Deal Radar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=Archivo+Narrow:wght@600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
-/* Layout: sticky filter bar over a single scannable column of shelf-tag rows */
+/* Layout: instrument-panel header with live radar sweep; image-first grid where
+   your best deals turn signal-green and say why. */
 :root{
-  --bg:#f3f2ee; --surface:#fffefb; --ink:#16181d; --muted:#666a73; --line:#dcdad3;
-  --tag:#ffd83d; --tag-ink:#1b1a12; --mark:#c8321f; --good:#1f7a4a; --chip:#e9e7e0;
-  --f-display:"Archivo Narrow","Arial Narrow",Arial,sans-serif;
-  --f-body:"Archivo",system-ui,-apple-system,Segoe UI,sans-serif;
-  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --bg:#edf0ea; --surface:#fafbf8; --ink:#0f1d17; --muted:#5e6b64; --line:#d5dbd3; --chip:#e2e7df;
+  --tile:#f1f3ee; --best:#17a35a; --best-tile:#d3efdd; --best-ink:#0b5a31; --cut:#e4572e; --warn:#c98a12;
+  --f-display:"Bricolage Grotesque","Avenir Next Condensed","Arial Narrow",sans-serif;
+  --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#121317; --surface:#1b1d22; --ink:#ecebe6; --muted:#9a9ea8; --line:#2c2f36;
-  --tag:#f2cc2e; --tag-ink:#17160f; --mark:#ff6a55; --good:#4fc48a; --chip:#262930; color-scheme:dark}}
+  --bg:#0c1210; --surface:#131b17; --ink:#e7efe9; --muted:#93a39a; --line:#25302a; --chip:#1d2722;
+  --tile:#e4e9e3; --best:#3ddc84; --best-tile:#b9e8cb; --best-ink:#7ff0b0; --cut:#ff7a50; --warn:#f0b43a; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#121317; --surface:#1b1d22; --ink:#ecebe6; --muted:#9a9ea8; --line:#2c2f36;
-  --tag:#f2cc2e; --tag-ink:#17160f; --mark:#ff6a55; --good:#4fc48a; --chip:#262930; color-scheme:dark}
+  --bg:#0c1210; --surface:#131b17; --ink:#e7efe9; --muted:#93a39a; --line:#25302a; --chip:#1d2722;
+  --tile:#e4e9e3; --best:#3ddc84; --best-tile:#b9e8cb; --best-ink:#7ff0b0; --cut:#ff7a50; --warn:#f0b43a; color-scheme:dark}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);padding-inline:16px;padding-block:0 48px}
-.wrap{max-width:1240px;margin:0 auto}
-header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:22px 12px}
-h1{font:700 34px/1 var(--f-display);letter-spacing:-.01em;margin:0;display:flex;align-items:center;gap:10px}
-h1 .dot{width:12px;height:12px;border-radius:50%;background:var(--mark);box-shadow:0 0 0 4px color-mix(in srgb,var(--mark) 22%,transparent)}
-.status{font:500 12px/1.4 var(--f-mono);color:var(--muted);text-align:right}
-.status b{color:var(--ink);font-weight:600}
-.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;border-bottom:1px solid var(--line);display:grid;gap:10px}
-.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
-.tabs button{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 13px var(--f-body);padding:7px 12px;border-radius:999px;cursor:pointer}
-.tabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.tabs .n{font:500 11px var(--f-mono);opacity:.7;margin-left:4px}
-.filters{display:grid;grid-template-columns:1fr auto auto auto;gap:8px}
-.filters input,.filters select{font:14px var(--f-body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
-.filters #maxp{width:96px}
-@media (max-width:620px){.filters{grid-template-columns:1fr 1fr}.filters #q{grid-column:1/-1}.filters #maxp{width:auto}}
-.stores{display:flex;gap:6px;flex-wrap:wrap}
-.stores button{border:0;background:var(--chip);color:var(--ink);font:600 12px var(--f-body);padding:5px 10px;border-radius:6px;cursor:pointer}
-.stores button[aria-pressed="true"]{background:var(--tag);color:var(--tag-ink)}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);padding-inline:16px;padding-block:0 56px}
+.wrap{max-width:1280px;margin:0 auto}
+:focus-visible{outline:2px solid var(--best);outline-offset:2px}
+
+/* Header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-block:22px 14px}
+.brand{display:flex;align-items:center;gap:12px}
+.scope{width:46px;height:46px;flex:none}
+.scope .sweep{transform-origin:50% 50%;animation:spin 30s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.scope .sweep{animation:none}}
+h1{font:800 34px/0.95 var(--f-display);letter-spacing:-.025em;margin:0}
+h1 small{display:block;font:500 12px var(--f-mono);letter-spacing:.04em;color:var(--muted);margin-top:4px;text-transform:uppercase}
+.readout{display:grid;grid-auto-flow:column;gap:18px;font:500 12px/1.3 var(--f-mono);color:var(--muted)}
+.readout b{display:block;font:700 18px var(--f-mono);color:var(--ink)}
+.readout .stale b{color:var(--warn)}
+
+/* Controls */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding-block:10px;display:grid;gap:10px;border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:none;display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 13px var(--f-body);padding:8px 13px;border-radius:999px;cursor:pointer}
+.tabs button .n{font:500 11px var(--f-mono);color:var(--muted)}
+.tabs button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.tabs button[aria-pressed="true"] .n{color:inherit;opacity:.7}
+.tabs button.me{border-color:var(--best)}
+.filters{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:8px}
+.filters input,.filters select{font:14px var(--f-body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-width:0}
+.filters #maxp{width:100px}
+@media (max-width:640px){.filters{grid-template-columns:1fr 1fr}.filters #q{grid-column:1/-1}.filters #maxp{width:auto}}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{border:0;background:var(--chip);color:var(--ink);font:600 12px var(--f-body);padding:5px 10px;border-radius:7px;cursor:pointer}
+.chips button .n{font:500 11px var(--f-mono);color:var(--muted);margin-left:3px}
+.chips button[aria-pressed="true"]{background:var(--best);color:#fff}
+.chips button[aria-pressed="true"] .n{color:inherit}
 .alertrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
-.alertrow input{flex:1 1 220px;min-width:0;font:13px var(--f-mono);color:var(--ink);background:var(--surface);border:1px dashed var(--line);border-radius:8px;padding:7px 10px}
-:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
-.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin-top:16px}
-@media (max-width:520px){.list{grid-template-columns:1fr 1fr;gap:10px}}
-.deal{position:relative;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:0}
-.deal.hit{border-color:var(--tag);box-shadow:0 0 0 2px color-mix(in srgb,var(--tag) 55%,transparent)}
-.thumb{position:relative;aspect-ratio:1/1;max-width:100%;background:#fff;border-bottom:1px solid var(--line)}
-.thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:10px}
-.badge{position:absolute;left:8px;top:8px;height:22px;padding:0 7px;border-radius:5px;display:grid;place-items:center;font:700 11px var(--f-display);color:#fff;letter-spacing:.04em;max-width:calc(100% - 60px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.thumb.noimg{display:grid;place-items:center;background:var(--chip)}
-.thumb.noimg::after{content:attr(data-store);font:700 20px var(--f-display);color:var(--muted);text-align:center;padding:0 12px}
-.flagbar{position:absolute;left:8px;bottom:8px;display:flex;gap:4px;flex-wrap:wrap}
-.flagbar span{font:600 10px var(--f-mono);padding:2px 6px;border-radius:4px;background:var(--ink);color:var(--bg);letter-spacing:.03em}
-.flagbar .a{background:var(--mark);color:#fff}.flagbar .f{background:var(--good);color:#fff}.flagbar .c{background:var(--tag);color:var(--tag-ink)}
-.star{position:absolute;right:6px;top:4px;border:0;background:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;padding:4px;text-shadow:0 0 3px var(--surface)}
-.star[aria-pressed="true"]{color:var(--mark)}
-.body{display:flex;flex-direction:column;gap:6px;padding:10px 12px 12px;flex:1;min-width:0}
-.prow{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.price{font:600 20px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--ink)}
-.price.na{font-size:13px;color:var(--muted)}
-.was{font:500 12px var(--f-mono);color:var(--muted);text-decoration:line-through}
-.pct{font:600 12px var(--f-mono);color:#fff;background:var(--mark);padding:1px 5px;border-radius:3px}
-.deal a.t{color:var(--ink);text-decoration:none;font-weight:600;font-size:14px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
-.deal a.t::after{content:"";position:absolute;inset:0}
-.deal a.t:hover{text-decoration:underline}
-.star,.target{position:relative;z-index:1}.star{position:absolute}
-.meta{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:auto;font:500 11px var(--f-mono);color:var(--muted)}
-.meta .hot{color:var(--mark);font-weight:600}
-.meta .drop{color:var(--good);font-weight:600}
-.meta .spec{border:1px solid var(--line);padding:0 4px;border-radius:3px;color:var(--ink)}
-.deal.fresh .t::before{content:"NEW";font:600 10px var(--f-mono);background:var(--mark);color:#fff;padding:1px 5px;border-radius:3px;margin-right:6px;vertical-align:2px}
-.target{display:flex;gap:6px;align-items:center;font:12px var(--f-mono);color:var(--muted);margin-top:6px}
-.target input{width:84px;font:12px var(--f-mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 6px}
-svg.spark{display:block}
-.empty{padding:48px 8px;text-align:center;color:var(--muted)}
-.empty h2{font:700 22px var(--f-display);color:var(--ink);margin:0 0 6px}
-.more{display:block;margin:18px auto 0;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 14px var(--f-body);padding:10px 18px;border-radius:8px;cursor:pointer}
-.help{margin:12px 0 0;font-size:13px;color:var(--muted);max-width:80ch}
+.alertrow input{flex:1 1 240px;min-width:0;font:13px var(--f-mono);color:var(--ink);background:transparent;border:1px dashed var(--line);border-radius:10px;padding:7px 10px}
+.ghost{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 12px var(--f-body);padding:7px 11px;border-radius:9px;cursor:pointer}
+.help{margin:14px 0 0;font-size:13px;color:var(--muted);max-width:85ch}
 .help:empty{display:none}
-footer{margin-top:28px;font-size:12px;color:var(--muted);max-width:65ch}
-@media (prefers-reduced-motion:no-preference){.deal{transition:transform .15s}.deal:hover{transform:translateY(-2px)}}
+
+/* Spotlight */
+.spot{margin-top:18px}
+.spot h2,.gridhead{font:800 22px/1.1 var(--f-display);letter-spacing:-.01em;margin:0 0 12px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.spot h2 span,.gridhead span{font:500 12px var(--f-mono);color:var(--muted);letter-spacing:0}
+.spot .grid{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+.gridhead{margin-top:28px}
+
+/* Cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
+@media (max-width:540px){.grid,.spot .grid{grid-template-columns:1fr 1fr;gap:10px}}
+.deal{position:relative;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
+@media (prefers-reduced-motion:no-preference){.deal{transition:transform .15s,box-shadow .15s}.deal:hover{transform:translateY(-2px);box-shadow:0 8px 24px color-mix(in srgb,var(--ink) 10%,transparent)}}
+.tile{position:relative;aspect-ratio:1/1;max-width:100%;background:var(--tile)}
+.tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:12px;mix-blend-mode:multiply}
+.tile.noimg{display:grid;place-items:center}
+.tile.noimg::after{content:attr(data-store);font:800 22px var(--f-display);color:#5e6b64;text-align:center;padding:0 14px}
+.store{position:absolute;left:8px;top:8px;height:22px;padding:0 8px;border-radius:6px;display:grid;place-items:center;font:600 11px var(--f-body);color:#fff;max-width:calc(100% - 56px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flags{position:absolute;left:8px;bottom:8px;display:flex;gap:4px;flex-wrap:wrap}
+.flags span{font:700 10px var(--f-mono);padding:3px 6px;border-radius:5px;background:#0f1d17;color:#fafbf8;letter-spacing:.03em}
+.flags .a{background:#e4572e}.flags .c{background:#f2c230;color:#1b1a12}
+.star{position:absolute;right:6px;top:4px;z-index:2;border:0;background:none;color:#5e6b64;font-size:23px;line-height:1;cursor:pointer;padding:4px}
+.star[aria-pressed="true"]{color:#e4572e}
+.body{display:flex;flex-direction:column;gap:6px;padding:11px 12px 12px;flex:1;min-width:0}
+.why{font:700 11px/1.3 var(--f-mono);color:var(--best-ink);letter-spacing:.02em}
+.prow{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.price{font:700 21px var(--f-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.price.na{font:600 13px var(--f-body);color:var(--muted)}
+.was{font:500 12px var(--f-mono);color:var(--muted);text-decoration:line-through}
+.pct{font:700 11px var(--f-mono);color:#fff;background:var(--cut);padding:2px 6px;border-radius:5px}
+.deal a.t{color:var(--ink);text-decoration:none;font-weight:600;font-size:14px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.deal a.t::after{content:"";position:absolute;inset:0;z-index:1}
+.deal a.t:hover{text-decoration:underline}
+.meta{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:auto;padding-top:2px;font:500 11px var(--f-mono);color:var(--muted)}
+.meta .spec{border:1px solid var(--line);padding:0 5px;border-radius:4px;color:var(--ink)}
+.meta .hot{color:var(--cut);font-weight:700}
+.target{position:relative;z-index:2;display:flex;gap:6px;align-items:center;font:12px var(--f-mono);color:var(--muted)}
+.target input{width:88px;font:12px var(--f-mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:4px 6px}
+svg.spark{display:block}
+.deal.fresh a.t::before{content:"NEW";font:700 10px var(--f-mono);background:var(--ink);color:var(--bg);padding:1px 5px;border-radius:4px;margin-right:6px;vertical-align:2px}
+
+/* Best for you: signal green */
+.deal.best{border-color:var(--best);box-shadow:0 0 0 1px var(--best)}
+.deal.best .tile{background:radial-gradient(120% 90% at 50% 20%,color-mix(in srgb,var(--best-tile) 70%,#fff),var(--best-tile))}
+.deal.best .tile::before{content:"";position:absolute;inset:0;border-bottom:3px solid var(--best);pointer-events:none}
+.deal.hit{border-color:#f2c230;box-shadow:0 0 0 2px #f2c230}
+
+.empty{grid-column:1/-1;padding:44px 12px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}
+.empty h3{font:800 22px var(--f-display);color:var(--ink);margin:0 0 6px}
+.more{display:block;margin:22px auto 0;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 14px var(--f-body);padding:11px 20px;border-radius:10px;cursor:pointer}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9;background:var(--best);color:#fff;font:700 14px var(--f-body);padding:11px 18px;border-radius:999px;border:0;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+footer{margin-top:36px;font-size:12px;color:var(--muted);max-width:75ch}
 </style>
 </head>
 <body>
-
 <div class="wrap">
   <header class="top">
-    <h1><span class="dot" aria-hidden="true"></span>Deal Radar</h1>
-    <div class="status" id="status">Connecting to deal feed…</div>
+    <div class="brand">
+      <svg class="scope" viewBox="0 0 46 46" aria-hidden="true">
+        <defs><linearGradient id="sw" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--best)" stop-opacity="0"/><stop offset="1" stop-color="var(--best)" stop-opacity=".55"/></linearGradient></defs>
+        <circle cx="23" cy="23" r="21.5" fill="var(--surface)" stroke="var(--line)"/>
+        <circle cx="23" cy="23" r="14" fill="none" stroke="var(--line)"/>
+        <circle cx="23" cy="23" r="6.5" fill="none" stroke="var(--line)"/>
+        <g class="sweep"><path d="M23 23 L23 1.5 A21.5 21.5 0 0 1 41.6 12.2 Z" fill="url(#sw)"/><line x1="23" y1="23" x2="41.6" y2="12.2" stroke="var(--best)" stroke-width="1.5"/></g>
+        <circle cx="31" cy="15" r="2.2" fill="var(--best)"/><circle cx="15" cy="30" r="1.6" fill="var(--cut)"/>
+      </svg>
+      <h1>Deal Radar<small id="sub">Scanning deal feeds</small></h1>
+    </div>
+    <div class="readout" id="readout" aria-live="polite">
+      <div><b id="r-count">—</b>deals</div>
+      <div><b id="r-best">—</b>best for you</div>
+      <div id="r-age-wrap"><b id="r-age">—</b>feed updated</div>
+    </div>
   </header>
 
   <div class="bar">
     <div class="tabs" role="toolbar" aria-label="Views" id="tabs"></div>
     <div class="filters">
-      <input id="q" type="search" placeholder="Search deals (e.g. dewalt, ps5, mattress)" aria-label="Search deals">
+      <input id="q" type="search" placeholder="Search (macbook pro, kiton, arc'teryx beta)" aria-label="Search deals">
       <select id="cat" aria-label="Category"><option value="">All categories</option></select>
       <input id="maxp" type="number" min="0" inputmode="decimal" placeholder="Max $" aria-label="Maximum price">
       <select id="sort" aria-label="Sort">
+        <option value="me">Best for me</option>
         <option value="new">Newest</option>
         <option value="hot">Hottest</option>
         <option value="pct">Biggest % off</option>
         <option value="low">Lowest price</option>
-        <option value="power">Most powerful (laptops)</option>
+        <option value="power">Most powerful (video)</option>
       </select>
     </div>
-    <div class="stores" id="stores" aria-label="Stores"></div>
+    <div class="chips" id="chips" aria-label="Filter by store or brand"></div>
     <div class="alertrow">
       <label for="alerts">Alert keywords</label>
       <input id="alerts" placeholder="kiton, isaia, macbook pro m4, arcteryx beta">
-      <button class="notify" id="notify" type="button" hidden>Turn on notifications</button>
+      <button class="ghost" id="notify" type="button" hidden>Turn on notifications</button>
     </div>
   </div>
 
   <p class="help" id="help"></p>
-  <div class="list" id="list"></div>
+  <section class="spot" id="spot" hidden>
+    <h2>Best for you right now <span id="spot-n"></span></h2>
+    <div class="grid" id="spot-grid"></div>
+  </section>
+  <h2 class="gridhead" id="gridhead" hidden>Everything else <span id="grid-n"></span></h2>
+  <div class="grid" id="list"></div>
   <button class="more" id="more" hidden>Show more</button>
   <button class="toast" id="toast" hidden></button>
 
-  <footer>Deals come from public feeds: Slickdeals, DealNews, camelcamelcamel price drops, and the r/buildapcsales, r/LaptopDeals, r/frugalmalefashion and r/FrugalFemaleFashion communities. Software keys, subscriptions, kids, toys and pet deals are hidden. Each title links to the original post. "Price anomalies" flags reported price mistakes, 70%+ discounts and big drops since a deal was first seen; verify before you buy, since retailers often cancel mistake orders. The feed refreshes every few minutes and this page checks for new deals every 30 seconds. Watchlist, target prices and alert keywords are saved in this browser only.</footer>
+  <footer>Green cards are the best deals for you: price errors on PCs, tailoring and outdoor brands; video-capable machines ≤$500; deep discounts; hot community picks; and anything matching your alerts or target prices. Deals come from public feeds (Slickdeals, DealNews, 9to5Toys, MacRumors, Dappered, camelcamelcamel and Reddit deal communities) and each links to the original post. Software keys, subscriptions, kids, toys and pet deals are hidden. Retailers often cancel price-mistake orders, so check fast. Watchlist, targets and alerts are saved in this browser only.</footer>
 </div>
 
 <script>
-const STORE_COLORS={"Home Depot":"#e2641b","Lowe's":"#1a4f9c","Walmart":"#0a6fd6","Target":"#cc1f2d","Best Buy":"#0b3a8a","Amazon":"#232f3e","Costco":"#c4202f","Kohl's":"#6b1d3a","Dicks Sporting Goods":"#146b4e"};
+const STORE_COLORS={"Home Depot":"#e2641b","Lowe's":"#1a4f9c","Walmart":"#0a6fd6","Target":"#cc1f2d","Best Buy":"#0b3a8a","Amazon":"#232f3e","Costco":"#c4202f","Kohl's":"#6b1d3a","Dick's":"#146b4e","Micro Center":"#b3121f","Newegg":"#e05a00","B&H":"#1f1f1f","Apple":"#1d1d1f","Woot":"#5e7d1a","Nordstrom Rack":"#1c3f94","REI":"#3a5f2a"};
 const TABS=[["picks","My Picks"],["anomaly","Price anomalies"],["p95","95%+ off & free"],["creative","Creative PCs ≤$500"],["power","Power PCs"],["tailor","Tailoring"],["brand","Outdoor brands"],["major","Major deals"],["clr","Clearance"],["today","New today"],["all","All"],["alerts","Alerts"],["watch","Watchlist"]];
-const TAB_HELP={picks:"PC price errors first, then creative machines ≤$500, tailoring, discounted power PCs and premium outdoor brands.",
-  anomaly:"Reported price mistakes, 70%+ off, and prices that fell 30%+ since first seen. Retailers often cancel mistake orders, so check fast.",
-  p95:"Real 95%+ discounts and genuinely free items. These are rare; the tab fills up when they appear.",
+const TAB_HELP={picks:"Your categories only: PC price errors, video-capable machines ≤$500, tailoring, discounted power PCs and premium outdoor brands. Green cards are the strongest.",
+  anomaly:"Reported price mistakes, 70%+ off, and prices that fell 30%+ since first seen.",
+  p95:"Real 95%+ discounts and genuinely free items. Rare; this fills the moment one is posted.",
   creative:"Machines ≤$500 that can edit video: Apple silicon, or Ryzen 7/9 or Core i7/i9 with 16GB+. Refurb and open-box included.",
-  power:"High-compute laptops and desktops. Sort “Most powerful” ranks for video work: Apple Max/Pro chips, RAM, then GPU.",
+  power:"High-compute laptops and desktops, ranked for video work: Apple Max/Pro chips and RAM first, then GPU.",
   tailor:"Kiton, Isaia, Attolini, Borrelli, Sartorio, Edward Green, Crockett & Jones, Alden, Drake's, Charvet, plus tailoring at Saks Off 5th, Nordstrom Rack, Last Call, Gilt, YOOX, Mr Porter, SSENSE and END. No eBay.",
   brand:"Patagonia, Arc'teryx, The North Face, Fjällräven, Canada Goose and similar brands."};
-const has=(d,f)=>(d.flags||[]).includes(f);
 const $=s=>document.querySelector(s);
-const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
-let deals=[],meta=null,freshIds=new Set(),pending=null,knownIds=null,tab=store.get("dr.tab2","picks"),stores=new Set(),limit=60;
-let watch=store.get("dr.watch",{}); // id -> {target, title, price}
-$("#alerts").value=store.get("dr.alerts","");
+const has=(d,f)=>(d.flags||[]).includes(f);
+const ls={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+let deals=[],meta=null,freshIds=new Set(),pending=null,knownIds=null,tab=ls.get("dr.tab2","picks"),chips=new Set(),limit=60;
+let watch=ls.get("dr.watch",{});
+$("#alerts").value=ls.get("dr.alerts","");
 
-function normStore(s){return /^woot/i.test(s)?"Woot":/^digitalkeys/i.test(s)?"Digitalkeysbox":s==="Costco Wholesale"?"Costco":s}
-function keywords(){return $("#alerts").value.split(",").map(s=>s.trim().toLowerCase()).filter(Boolean)}
-function isAlert(d){const t=d.title.toLowerCase();return keywords().some(k=>k.split(/\s+/).every(w=>t.includes(w)))}
-function isPick(d){return has(d,"creative")||has(d,"tailor")||has(d,"brand")||(has(d,"pc")&&has(d,"anomaly"))||(has(d,"power")&&(d.pct??0)>=30)}
-function isMajor(d){return (d.pct??0)>=50||(d.score??0)>=25||d.pick||dropped(d)||has(d,"anomaly")}
+const normStore=s=>/^woot/i.test(s)?"Woot":/^digitalkeys/i.test(s)?"Digitalkeysbox":/^costco/i.test(s)?"Costco":/^dicks/i.test(s)?"Dick's":s;
+const keywords=()=>$("#alerts").value.split(",").map(s=>s.trim().toLowerCase()).filter(Boolean);
+const isAlert=d=>{const t=d.title.toLowerCase();return keywords().some(k=>k.split(/\s+/).every(w=>t.includes(w)))};
+const dropped=d=>{const h=d.hist||[];return h.length>1&&h[h.length-1][1]<h[h.length-2][1]};
+const isToday=d=>Date.now()-Date.parse(d.seen)<864e5;
+const hitTarget=d=>{const w=watch[d.id];return !!(w&&w.target!=null&&d.price!=null&&d.price<=w.target)};
+const isPick=d=>has(d,"creative")||has(d,"tailor")||has(d,"brand")||(has(d,"pc")&&has(d,"anomaly"))||(has(d,"power")&&(d.pct??0)>=30);
+const isMajor=d=>(d.pct??0)>=50||(d.score??0)>=25||d.pick||dropped(d)||has(d,"anomaly");
+
+// How good a deal is for this shopper, and why.
+function personal(d){
+  if(has(d,"hide"))return{s:0,why:[]};
+  let s=0;const why=[];
+  const mine=has(d,"pc")||has(d,"tailor")||has(d,"brand");
+  if(has(d,"anomaly")){s+=mine?60:25;why.push(mine?"Possible price error":"Unusual price")}
+  if(has(d,"creative")){s+=40;why.push("Edits video under $500")}
+  if(has(d,"tailor")){s+=45;why.push(d.brand||"Tailoring")}
+  if(has(d,"power")){s+=15;why.push("High-compute")}
+  if(has(d,"brand")){s+=15;why.push(d.brand)}
+  const pct=d.pct||0;if(pct>=30){s+=Math.min(pct,90)/2;why.push(pct+"% off")}
+  if((d.score||0)>=20){s+=Math.min(d.score,80)/4;why.push("Community hot")}
+  if(d.pick){s+=10;why.push("Staff pick")}
+  if(dropped(d)){s+=15;why.push("Price just dropped")}
+  if(isAlert(d)){s+=35;why.push("Matches your alert")}
+  if(hitTarget(d)){s+=60;why.push("Hit your target")}
+  if(!mine&&!isAlert(d)&&!hitTarget(d))s*=0.5;
+  return{s,why:[...new Set(why)].slice(0,3)};
+}
+const BEST=55;
+const isBest=d=>personal(d).s>=BEST;
+
 function specs(t){
   const out=[],gpu=t.match(/RTX\s?(\d{4})(\s?Ti)?/i),m=t.match(/\bM([1-6])\s?(Pro|Max|Ultra)?\b/),cpu=t.match(/Ryzen\s?(AI\s)?\d{1,3}|Core\s?Ultra\s?\d|\bi[579]\b/i),ram=t.match(/\b(8|16|24|32|36|48|64|96|128)\s?GB\b/i);
-  if(gpu)out.push("RTX "+gpu[1]+(gpu[2]?" Ti":""));if(m&&/mac/i.test(t))out.push("M"+m[1]+(m[2]?" "+m[2]:""));
+  if(m&&/mac/i.test(t))out.push("M"+m[1]+(m[2]?" "+m[2]:""));if(gpu)out.push("RTX "+gpu[1]+(gpu[2]?" Ti":""));
   if(cpu)out.push(cpu[0].replace(/\s+/g," "));if(ram)out.push(ram[1]+"GB");return out;
 }
 function power(t){
   let s=0;const g=t.match(/RTX\s?(\d{2})(\d{2})/i);
-  if(g){const tier=+g[2],gen=+g[1];s+=tier>=90?100:tier>=80?85:tier>=70?70:tier>=60?50:30;s+=gen>=50?8:0;if(/\d{4}\s?Ti/i.test(t))s+=5}
+  if(g){const tier=+g[2];s+=tier>=90?100:tier>=80?85:tier>=70?70:tier>=60?50:30;if(+g[1]>=50)s+=8;if(/\d{4}\s?Ti/i.test(t))s+=5}
   const m=t.match(/\bM([1-6])\s?(Pro|Max|Ultra)?\b/);if(m&&/mac/i.test(t))s=Math.max(s*0.8,(m[2]==="Max"||m[2]==="Ultra"?110:m[2]==="Pro"?90:60)+(+m[1])*4);
   const r=t.match(/\b(16|24|32|36|48|64|96|128)\s?GB\b/i);if(r)s+=Math.min(+r[1],128)/4;
   if(/ryzen\s?(ai\s)?9|ultra\s?9|\bi9\b/i.test(t))s+=8;return s;
 }
-function dropped(d){const h=d.hist||[];return h.length>1&&h[h.length-1][1]<h[h.length-2][1]}
-function isToday(d){return Date.now()-Date.parse(d.seen)<864e5}
-function hitTarget(d){const w=watch[d.id];return w&&w.target!=null&&d.price!=null&&d.price<=w.target}
-function ago(iso){if(!iso)return"";const m=Math.round((Date.now()-Date.parse(iso))/6e4);return m<60?m+"m ago":m<1440?Math.round(m/60)+"h ago":Math.round(m/1440)+"d ago"}
+function ago(iso){if(!iso)return"—";const m=Math.max(0,Math.round((Date.now()-Date.parse(iso))/6e4));return m<1?"now":m<60?m+"m":m<1440?Math.round(m/60)+"h":Math.round(m/1440)+"d"}
 const money=n=>n==null?"":n===0?"FREE":"$"+(n>=100?Math.round(n).toLocaleString():n.toFixed(2).replace(/\.00$/,""));
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
-function filtered(t=tab){
-  const q=$("#q").value.trim().toLowerCase(),cat=$("#cat").value,maxp=parseFloat($("#maxp").value);
-  let r=deals.filter(d=>!has(d,"hide")&&
-    (t==="all"||(t==="picks"&&isPick(d))||(["creative","tailor"].includes(t)&&has(d,t))||(t==="major"&&isMajor(d))||(["anomaly","p95","power","brand"].includes(t)&&has(d,t))||(t==="clr"&&d.clr)||(t==="today"&&isToday(d))||(t==="alerts"&&isAlert(d))||(t==="watch"&&watch[d.id]))
-    &&(!q||d.title.toLowerCase().includes(q))&&(!cat||d.cat===cat)
-    &&(!stores.size||stores.has((t==="brand"||t==="tailor")?d.brand:d.store))&&(isNaN(maxp)||(d.price!=null&&d.price<=maxp)));
-  return r;
+function inTab(d,t){
+  return t==="all"||(t==="picks"&&isPick(d))||(t==="major"&&isMajor(d))||(["anomaly","p95","power","brand","creative","tailor"].includes(t)&&has(d,t))||
+    (t==="clr"&&d.clr)||(t==="today"&&isToday(d))||(t==="alerts"&&isAlert(d))||(t==="watch"&&!!watch[d.id]);
+}
+const chipKey=t=>(t==="brand"||t==="tailor")?"brand":"store";
+function filtered(t=tab,useFilters=true){
+  const q=$("#q").value.trim().toLowerCase(),cat=$("#cat").value,maxp=parseFloat($("#maxp").value),key=chipKey(t);
+  return deals.filter(d=>!has(d,"hide")&&inTab(d,t)&&(!useFilters||(
+    (!q||d.title.toLowerCase().includes(q))&&(!cat||d.cat===cat)&&(!chips.size||chips.has(d[key]))&&(isNaN(maxp)||(d.price!=null&&d.price<=maxp)))));
 }
 function sorted(r){
-  const s=$("#sort").value;
-  if(tab==="picks"&&s==="new"){const rank=d=>has(d,"anomaly")?0:has(d,"creative")?1:has(d,"tailor")?2:has(d,"power")?3:4;return r.sort((a,b)=>(hitTarget(b)-hitTarget(a))||rank(a)-rank(b)||Date.parse(b.posted||b.seen)-Date.parse(a.posted||a.seen))}
-  const k={new:d=>-Date.parse(d.posted||d.seen),hot:d=>-(d.score??-99),pct:d=>-(d.pct??-1),low:d=>d.price??1e9,power:d=>-power(d.title)}[s];
-  return r.sort((a,b)=>(hitTarget(b)-hitTarget(a))||(k(a)-k(b)));
+  const s=$("#sort").value,time=d=>Date.parse(d.posted||d.seen)||0;
+  const k={me:d=>-personal(d).s,new:d=>-time(d),hot:d=>-(d.score??-99),pct:d=>-(d.pct??-1),low:d=>d.price??1e9,power:d=>-power(d.title)}[s];
+  return r.sort((a,b)=>(k(a)-k(b))||time(b)-time(a));
 }
 function spark(h){
   if(!h||h.length<2)return"";
-  const v=h.map(x=>x[1]),lo=Math.min(...v),hi=Math.max(...v),w=64,ht=18,sp=hi-lo||1;
-  const pts=v.map((y,i)=>`${(i/(v.length-1)*w).toFixed(1)},${(ht-2-(y-lo)/sp*(ht-4)).toFixed(1)}`).join(" ");
-  const last=pts.split(" ").pop().split(",");
-  return `<svg class="spark" width="${w+4}" height="${ht}" viewBox="-2 0 ${w+4} ${ht}" aria-label="Price history"><polyline points="${pts}" fill="none" stroke="var(--muted)" stroke-width="1.4"/><circle cx="${last[0]}" cy="${last[1]}" r="2.4" fill="var(--good)"/></svg>`;
+  const v=h.map(x=>x[1]),lo=Math.min(...v),hi=Math.max(...v),w=56,ht=16,sp=hi-lo||1;
+  const pts=v.map((y,i)=>`${(i/(v.length-1)*w).toFixed(1)},${(ht-2-(y-lo)/sp*(ht-4)).toFixed(1)}`).join(" "),last=pts.split(" ").pop().split(",");
+  return `<svg class="spark" width="${w+4}" height="${ht}" viewBox="-2 0 ${w+4} ${ht}" aria-label="Price history"><polyline points="${pts}" fill="none" stroke="var(--muted)" stroke-width="1.4"/><circle cx="${last[0]}" cy="${last[1]}" r="2.4" fill="var(--best)"/></svg>`;
 }
-function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
-function row(d){
-  const col=STORE_COLORS[d.store]||"#4a505e";
-  const w=watch[d.id],hit=hitTarget(d)||(tab!=="alerts"&&isAlert(d));
-  const fl=[has(d,"anomaly")&&'<span class="a">ANOMALY</span>',has(d,"free")&&'<span class="f">FREE</span>',d.clr&&'<span class="c">CLEARANCE</span>',has(d,"refurb")&&'<span>REFURB</span>'].filter(Boolean).join("");
-  return `<article class="deal${hit?" hit":""}${freshIds.has(d.id)?" fresh":""}">
-    <div class="thumb${d.img?"":" noimg"}" data-store="${esc(d.store)}">${d.img?`<img src="${esc(d.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()">`:""}
-      <div class="badge" style="background:${col}">${esc(d.store)}</div>
-      ${fl?`<div class="flagbar">${fl}</div>`:""}
+function card(d){
+  const p=personal(d),best=p.s>=BEST,w=watch[d.id],hit=hitTarget(d);
+  const fl=[has(d,"anomaly")&&'<span class="a">ANOMALY</span>',has(d,"free")&&'<span>FREE</span>',d.clr&&'<span class="c">CLEARANCE</span>',has(d,"refurb")&&'<span>REFURB</span>'].filter(Boolean).join("");
+  return `<article class="deal${best?" best":""}${hit?" hit":""}${freshIds.has(d.id)?" fresh":""}">
+    <div class="tile${d.img?"":" noimg"}" data-store="${esc(d.store)}">${d.img?`<img src="${esc(d.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()">`:""}
+      <div class="store" style="background:${STORE_COLORS[d.store]||"#3c4a43"}">${esc(d.store)}</div>
+      ${fl?`<div class="flags">${fl}</div>`:""}
     </div>
-    <button class="star" data-watch="${d.id}" aria-pressed="${!!w}" aria-label="${w?"Remove from":"Add to"} watchlist">${w?"★":"☆"}</button>
+    <button class="star" data-watch="${esc(d.id)}" aria-pressed="${!!w}" aria-label="${w?"Remove from":"Add to"} watchlist">${w?"★":"☆"}</button>
     <div class="body">
+      ${best?`<div class="why">● ${esc(p.why.join(" · "))}</div>`:""}
       <div class="prow"><span class="price${d.price==null?" na":""}">${d.price==null?"See deal":money(d.price)}</span>${d.was?`<span class="was">${money(d.was)}</span>`:""}${d.pct?`<span class="pct">−${d.pct}%</span>`:""}${spark(d.hist)}</div>
       <a class="t" href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.title)}</a>
       <div class="meta">
         ${has(d,"pc")?specs(d.title).map(x=>`<span class="spec">${esc(x)}</span>`).join(""):""}
-        ${d.brand?`<span>${esc(d.brand)}</span>`:""}
-        ${d.score!=null?`<span class="${d.score>=25?"hot":""}">▲ ${d.score}</span>`:""}
-        ${d.pick?'<span class="hot">Staff pick</span>':""}
-        ${dropped(d)?'<span class="drop">▼ dropped</span>':""}
-        ${hitTarget(d)?'<span class="drop">✓ target hit</span>':""}
-        <span>${ago(d.posted||d.seen)} · ${esc(d.src||"")}</span>
+        ${d.brand&&!best?`<span>${esc(d.brand)}</span>`:""}
+        ${d.score!=null?`<span class="${d.score>=25?"hot":""}">▲${d.score}</span>`:""}
+        <span>${ago(d.posted||d.seen)} ago · ${esc(d.src)}</span>
       </div>
-      ${w?`<div class="target"><label for="t-${d.id}">Alert ≤ $</label><input id="t-${d.id}" data-target="${d.id}" type="number" min="0" step="0.01" value="${w.target??""}" placeholder="price"></div>`:""}
+      ${w?`<div class="target"><label for="t-${esc(d.id)}">Alert ≤ $</label><input id="t-${esc(d.id)}" data-target="${esc(d.id)}" type="number" min="0" step="0.01" value="${w.target??""}" placeholder="price"></div>`:""}
     </div></article>`;
 }
 function renderTabs(){
-  $("#tabs").innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" aria-pressed="${k===tab}">${l}<span class="n">${deals.length?filtered(k).length:""}</span></button>`).join("");
+  $("#tabs").innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" aria-pressed="${k===tab}"${k==="picks"?' class="me"':""}>${l}<span class="n">${deals.length?filtered(k,false).length:""}</span></button>`).join("");
 }
-function renderStores(){
-  const key=(tab==="brand"||tab==="tailor")?"brand":"store",c={};deals.forEach(d=>{if(d[key])c[d[key]]=(c[d[key]]||0)+1});
-  const top=Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
-  stores.forEach(s=>{if(!top.includes(s))top.push(s)});
-  $("#stores").innerHTML=top.map(s=>`<button data-store="${esc(s)}" aria-pressed="${stores.has(s)}">${esc(s)} <span class="n">${c[s]||0}</span></button>`).join("");
+function renderChips(){
+  const key=chipKey(tab),c={};filtered(tab,false).forEach(d=>{if(d[key])c[d[key]]=(c[d[key]]||0)+1});
+  const top=Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,12).map(e=>e[0]);chips.forEach(s=>{if(!top.includes(s))top.push(s)});
+  $("#chips").innerHTML=top.map(s=>`<button data-chip="${esc(s)}" aria-pressed="${chips.has(s)}">${esc(s)}<span class="n">${c[s]||0}</span></button>`).join("");
   const cats=[...new Set(deals.map(d=>d.cat))].sort(),cur=$("#cat").value;
   $("#cat").innerHTML='<option value="">All categories</option>'+cats.map(x=>`<option${x===cur?" selected":""}>${esc(x)}</option>`).join("");
 }
 function render(){
   renderTabs();$("#help").textContent=TAB_HELP[tab]||"";
-  const list=$("#list");
+  const list=$("#list"),spot=$("#spot");
   if(!deals.length){
-    list.innerHTML=`<div class="empty"><h2>${meta===false?"Deal feed unavailable":"Loading deals…"}</h2>${meta===false?"The deal file could not be loaded. The page retries every 30 seconds.":""}</div>`;
-    $("#more").hidden=true;return;
+    spot.hidden=true;$("#gridhead").hidden=true;$("#more").hidden=true;
+    list.innerHTML=`<div class="empty"><h3>${meta===false?"Can't reach the deal feed":"Scanning…"}</h3>${meta===false?"Retrying every 30 seconds.":""}</div>`;return;
   }
-  const r=sorted(filtered());
-  if(!r.length){
-    const msg=tab==="tailor"?"No tailoring deals right now. The public deal feeds rarely carry these brands, so this tab fills slowly. Searches run every 15 minutes.":tab==="p95"?"Nothing at 95%+ off right now. These are rare; they'll show here the moment one is posted.":tab==="watch"?"Tap ☆ on any deal to watch it and set a target price.":tab==="alerts"?"Add keywords above. Matching deals collect here and glow in every view.":"Nothing matches these filters. Clear the search or pick another store.";
-    list.innerHTML=`<div class="empty"><h2>No deals here yet</h2>${msg}</div>`;$("#more").hidden=true;return;
+  let r=sorted(filtered());
+  const bestAll=deals.filter(d=>!has(d,"hide")&&isBest(d));$("#r-best").textContent=bestAll.length;
+  const spotItems=tab==="picks"&&$("#sort").value==="me"?r.filter(isBest).slice(0,4):[];
+  spot.hidden=!spotItems.length;$("#gridhead").hidden=!spotItems.length;
+  if(spotItems.length){$("#spot-grid").innerHTML=spotItems.map(card).join("");$("#spot-n").textContent=`${r.filter(isBest).length} green deals in your picks`;
+    const ids=new Set(spotItems.map(d=>d.id));r=r.filter(d=>!ids.has(d.id));$("#grid-n").textContent=r.length+" deals"}
+  if(!r.length&&!spotItems.length){
+    const msg=tab==="tailor"?"No tailoring deals right now. The public feeds rarely carry these brands; searches run every 15 minutes.":tab==="p95"?"Nothing at 95%+ off right now. These show up the moment one is posted.":tab==="watch"?"Tap ☆ on any deal to watch it and set a target price.":tab==="alerts"?"Add keywords above. Matches turn green everywhere.":"Nothing matches these filters.";
+    list.innerHTML=`<div class="empty"><h3>Nothing here yet</h3>${msg}</div>`;$("#more").hidden=true;return;
   }
-  list.innerHTML=r.slice(0,limit).map(row).join("");
+  list.innerHTML=r.slice(0,limit).map(card).join("");
   $("#more").hidden=r.length<=limit;$("#more").textContent=`Show more (${r.length-limit} left)`;
 }
+let nextCheck=Date.now()+30000;
 function renderStatus(){
-  if(!meta){return}
-  const src=Object.values(meta.sources||{}),ok=src.filter(v=>v==="ok").length;
-  $("#status").innerHTML=`<b>${meta.count}</b> deals · updated <b>${ago(meta.updatedAt)}</b><br>${ok}/${src.length} feeds live`;
+  if(!meta)return;
+  $("#r-count").textContent=meta.count;
+  const age=(Date.now()-Date.parse(meta.updatedAt))/6e4;
+  $("#r-age").textContent=ago(meta.updatedAt)+" ago";$("#r-age-wrap").classList.toggle("stale",age>15);
+  const src=Object.values(meta.sources||{}),ok=src.filter(v=>v==="ok").length,s=Math.max(0,Math.round((nextCheck-Date.now())/1000));
+  $("#sub").textContent=`${ok}/${src.length} feeds live · next check ${s}s`;
 }
 
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-tab],[data-store],[data-watch]");if(!t)return;
-  if(t.dataset.tab){const was=tab;tab=t.dataset.tab;store.set("dr.tab2",tab);limit=60;
-    stores.clear();
-    if((tab==="power"||tab==="creative")&&$("#sort").value==="new")$("#sort").value="power";
-    else if(!["power","creative"].includes(tab)&&$("#sort").value==="power")$("#sort").value="new";
-    renderStores()}
-  if(t.dataset.store){const s=t.dataset.store;stores.has(s)?stores.delete(s):stores.add(s);renderStores();limit=60}
-  if(t.dataset.watch){const id=t.dataset.watch,d=deals.find(x=>x.id===id);
-    if(watch[id])delete watch[id];else watch[id]={target:null,title:d?.title,price:d?.price};store.set("dr.watch",watch)}
+  const t=e.target.closest("[data-tab],[data-chip],[data-watch]");if(!t)return;
+  if(t.dataset.tab){tab=t.dataset.tab;ls.set("dr.tab2",tab);limit=60;chips.clear();
+    const s=$("#sort");if(tab==="power"||tab==="creative")s.value="power";else if(s.value==="power")s.value="me";renderChips()}
+  if(t.dataset.chip){const s=t.dataset.chip;chips.has(s)?chips.delete(s):chips.add(s);limit=60;renderChips()}
+  if(t.dataset.watch){e.preventDefault();const id=t.dataset.watch,d=deals.find(x=>x.id===id);
+    if(watch[id])delete watch[id];else watch[id]={target:null,title:d?.title,price:d?.price};ls.set("dr.watch",watch)}
   render();
 });
 document.addEventListener("change",e=>{
   const id=e.target.dataset?.target;if(!id||!watch[id])return;
-  const v=parseFloat(e.target.value);watch[id].target=isNaN(v)?null:v;store.set("dr.watch",watch);render();
+  const v=parseFloat(e.target.value);watch[id].target=isNaN(v)?null:v;ls.set("dr.watch",watch);render();
 });
-let tmr;["#q","#maxp","#alerts"].forEach(s=>$(s).addEventListener("input",()=>{clearTimeout(tmr);tmr=setTimeout(()=>{store.set("dr.alerts",$("#alerts").value);limit=60;render()},200)}));
+let tmr;["#q","#maxp","#alerts"].forEach(s=>$(s).addEventListener("input",()=>{clearTimeout(tmr);tmr=setTimeout(()=>{ls.set("dr.alerts",$("#alerts").value);limit=60;render()},200)}));
 ["#cat","#sort"].forEach(s=>$(s).addEventListener("change",()=>{limit=60;render()}));
 $("#more").addEventListener("click",()=>{limit+=60;render()});
-setInterval(renderStatus,60000);
+setInterval(renderStatus,1000);
 render();
 
 async function load(){
+  nextCheck=Date.now()+30000;
   try{
     const r=await fetch("deals.json?t="+Date.now(),{cache:"no-store"});
     if(!r.ok)throw new Error(r.status);
     const data=await r.json();
-    if(meta&&data.updatedAt===meta.updatedAt)return;
+    if(meta&&data.updatedAt===meta.updatedAt){renderStatus();return}
     const seen=new Set();
     const next=(data.deals||[]).filter(d=>d&&d.id&&!seen.has(d.id)&&seen.add(d.id)).map(d=>({...d,store:normStore(d.store||"Online")}));
     meta=data;renderStatus();
-    if(!knownIds){knownIds=new Set(next.map(d=>d.id));deals=next;renderStores();render();return}
-    const added=next.filter(d=>!knownIds.has(d.id));
-    next.forEach(d=>knownIds.add(d.id));
-    notifyMatches(added,next);
-    if(added.length&&window.scrollY>300){pending=next;added.forEach(d=>freshIds.add(d.id));showToast(added.length);return}
-    added.forEach(d=>freshIds.add(d.id));deals=next;renderStores();render();
-  }catch(e){
-    if(!deals.length){meta=false;render()}
-    $("#status").textContent="Can't reach the deal feed. Retrying…";
-  }
+    if(!knownIds){knownIds=new Set(next.map(d=>d.id));deals=next;renderChips();render();return}
+    const added=next.filter(d=>!knownIds.has(d.id));next.forEach(d=>knownIds.add(d.id));
+    notifyMatches(added,next);added.forEach(d=>freshIds.add(d.id));
+    if(added.length&&window.scrollY>300){pending=next;const b=added.filter(isBest).length,t=$("#toast");
+      t.textContent=`${added.length} new deal${added.length>1?"s":""}${b?` · ${b} green`:""} ↑`;t.hidden=false;return}
+    deals=next;renderChips();render();
+  }catch(e){if(!deals.length){meta=false;render()}$("#sub").textContent="Can't reach the deal feed. Retrying…"}
 }
-function showToast(n){const t=$("#toast");t.textContent=`${n} new deal${n>1?"s":""} ↑`;t.hidden=false}
-$("#toast").addEventListener("click",()=>{if(pending){deals=pending;pending=null}$("#toast").hidden=true;renderStores();render();window.scrollTo({top:0,behavior:"smooth"})});
+$("#toast").addEventListener("click",()=>{if(pending){deals=pending;pending=null}$("#toast").hidden=true;renderChips();render();window.scrollTo({top:0,behavior:"smooth"})});
 
-const notified=new Set(store.get("dr.notified",[]));
-function canNotify(){return "Notification" in window&&Notification.permission==="granted"}
+const notified=new Set(ls.get("dr.notified",[]));
+const canNotify=()=>"Notification" in window&&Notification.permission==="granted";
 function notifyMatches(added,all){
   if(!canNotify())return;
-  const hits=[...added.filter(isAlert),...all.filter(d=>hitTarget(d)&&!notified.has("t"+d.id))];
+  const hits=[...added.filter(d=>isAlert(d)||isBest(d)),...all.filter(hitTarget)];
   hits.slice(0,5).forEach(d=>{
     const key=(hitTarget(d)?"t":"a")+d.id;if(notified.has(key))return;notified.add(key);
-    const n=new Notification(`${money(d.price)||"Deal"} · ${d.store}`,{body:d.title,icon:d.img||undefined,tag:d.id});
+    const n=new Notification(`${money(d.price)||"Deal"} · ${d.store}`,{body:personal(d).why.join(" · ")+"\n"+d.title,icon:d.img||undefined,tag:d.id});
     n.onclick=()=>{window.open(d.url,"_blank");n.close()};
   });
-  store.set("dr.notified",[...notified].slice(-500));
+  ls.set("dr.notified",[...notified].slice(-500));
 }
 if("Notification" in window&&Notification.permission==="default"){
   $("#notify").hidden=false;
