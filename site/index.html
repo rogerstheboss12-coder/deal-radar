@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#16181d">
+<title>Deal Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=Archivo+Narrow:wght@600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: sticky filter bar over a single scannable column of shelf-tag rows */
+:root{
+  --bg:#f3f2ee; --surface:#fffefb; --ink:#16181d; --muted:#666a73; --line:#dcdad3;
+  --tag:#ffd83d; --tag-ink:#1b1a12; --mark:#c8321f; --good:#1f7a4a; --chip:#e9e7e0;
+  --f-display:"Archivo Narrow","Arial Narrow",Arial,sans-serif;
+  --f-body:"Archivo",system-ui,-apple-system,Segoe UI,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121317; --surface:#1b1d22; --ink:#ecebe6; --muted:#9a9ea8; --line:#2c2f36;
+  --tag:#f2cc2e; --tag-ink:#17160f; --mark:#ff6a55; --good:#4fc48a; --chip:#262930; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121317; --surface:#1b1d22; --ink:#ecebe6; --muted:#9a9ea8; --line:#2c2f36;
+  --tag:#f2cc2e; --tag-ink:#17160f; --mark:#ff6a55; --good:#4fc48a; --chip:#262930; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);padding-inline:16px;padding-block:0 48px}
+.wrap{max-width:880px;margin:0 auto}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:22px 12px}
+h1{font:700 34px/1 var(--f-display);letter-spacing:-.01em;margin:0;display:flex;align-items:center;gap:10px}
+h1 .dot{width:12px;height:12px;border-radius:50%;background:var(--mark);box-shadow:0 0 0 4px color-mix(in srgb,var(--mark) 22%,transparent)}
+.status{font:500 12px/1.4 var(--f-mono);color:var(--muted);text-align:right}
+.status b{color:var(--ink);font-weight:600}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;border-bottom:1px solid var(--line);display:grid;gap:10px}
+.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.tabs button{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 13px var(--f-body);padding:7px 12px;border-radius:999px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tabs .n{font:500 11px var(--f-mono);opacity:.7;margin-left:4px}
+.filters{display:grid;grid-template-columns:1fr auto auto auto;gap:8px}
+.filters input,.filters select{font:14px var(--f-body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
+.filters #maxp{width:96px}
+@media (max-width:620px){.filters{grid-template-columns:1fr 1fr}.filters #q{grid-column:1/-1}.filters #maxp{width:auto}}
+.stores{display:flex;gap:6px;flex-wrap:wrap}
+.stores button{border:0;background:var(--chip);color:var(--ink);font:600 12px var(--f-body);padding:5px 10px;border-radius:6px;cursor:pointer}
+.stores button[aria-pressed="true"]{background:var(--tag);color:var(--tag-ink)}
+.alertrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.alertrow input{flex:1 1 220px;min-width:0;font:13px var(--f-mono);color:var(--ink);background:var(--surface);border:1px dashed var(--line);border-radius:8px;padding:7px 10px}
+:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
+.list{display:grid;margin-top:6px}
+.deal{display:grid;grid-template-columns:84px 1fr auto;gap:12px;align-items:start;padding-block:14px;border-bottom:1px solid var(--line)}
+.deal.hit{background:linear-gradient(90deg,color-mix(in srgb,var(--tag) 18%,transparent),transparent 70%)}
+.thumb{position:relative;width:84px;height:84px;border-radius:8px;background:#fff;border:1px solid var(--line);overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:contain;display:block}
+.badge{position:absolute;left:4px;bottom:4px;min-width:24px;height:20px;padding:0 5px;border-radius:4px;display:grid;place-items:center;font:700 11px var(--f-display);color:#fff;letter-spacing:.03em}
+.thumb.noimg .badge{inset:0;width:auto;height:auto;border-radius:0;font-size:22px}
+@media (max-width:480px){.deal{grid-template-columns:64px 1fr auto;gap:10px}.thumb{width:64px;height:64px}}
+.deal.fresh .t::before{content:"NEW";font:600 10px var(--f-mono);background:var(--mark);color:#fff;padding:1px 5px;border-radius:3px;margin-right:6px;vertical-align:2px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9;background:var(--ink);color:var(--bg);font:600 14px var(--f-body);padding:10px 16px;border-radius:999px;border:0;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.notify{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 12px var(--f-body);padding:6px 10px;border-radius:8px;cursor:pointer}
+.main{min-width:0}
+.main a.t{color:var(--ink);text-decoration:none;font-weight:600;line-height:1.35;display:block;overflow-wrap:anywhere}
+.main a.t:hover{text-decoration:underline}
+.meta{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:5px;font:500 12px var(--f-mono);color:var(--muted)}
+.meta .hot{color:var(--mark);font-weight:600}
+.meta .drop{color:var(--good);font-weight:600}
+.meta .clr{background:var(--tag);color:var(--tag-ink);padding:0 5px;border-radius:3px}
+.side{display:grid;justify-items:end;gap:6px}
+.price{background:var(--tag);color:var(--tag-ink);font:600 17px var(--f-mono);padding:4px 9px 4px 14px;position:relative;clip-path:polygon(8px 0,100% 0,100% 100%,8px 100%,0 50%);font-variant-numeric:tabular-nums;white-space:nowrap}
+.price.na{background:var(--chip);color:var(--muted);font-size:13px}
+.was{font:500 12px var(--f-mono);color:var(--muted);text-decoration:line-through}
+.pct{font:600 12px var(--f-mono);color:var(--mark)}
+.star{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px}
+.star[aria-pressed="true"]{color:var(--mark)}
+.target{display:flex;gap:6px;align-items:center;font:12px var(--f-mono);color:var(--muted);margin-top:6px}
+.target input{width:84px;font:12px var(--f-mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+svg.spark{display:block}
+.empty{padding:48px 8px;text-align:center;color:var(--muted)}
+.empty h2{font:700 22px var(--f-display);color:var(--ink);margin:0 0 6px}
+.more{display:block;margin:18px auto 0;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 14px var(--f-body);padding:10px 18px;border-radius:8px;cursor:pointer}
+footer{margin-top:28px;font-size:12px;color:var(--muted);max-width:65ch}
+@media (prefers-reduced-motion:no-preference){.deal{animation:in .25s ease-out both}@keyframes in{from{opacity:.4;transform:translateY(3px)}}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <h1><span class="dot" aria-hidden="true"></span>Deal Radar</h1>
+    <div class="status" id="status">Connecting to deal feed…</div>
+  </header>
+
+  <div class="bar">
+    <div class="tabs" role="toolbar" aria-label="Views" id="tabs"></div>
+    <div class="filters">
+      <input id="q" type="search" placeholder="Search deals (e.g. dewalt, ps5, mattress)" aria-label="Search deals">
+      <select id="cat" aria-label="Category"><option value="">All categories</option></select>
+      <input id="maxp" type="number" min="0" inputmode="decimal" placeholder="Max $" aria-label="Maximum price">
+      <select id="sort" aria-label="Sort">
+        <option value="new">Newest</option>
+        <option value="hot">Hottest</option>
+        <option value="pct">Biggest % off</option>
+        <option value="low">Lowest price</option>
+      </select>
+    </div>
+    <div class="stores" id="stores" aria-label="Stores"></div>
+    <div class="alertrow">
+      <label for="alerts">Alert keywords</label>
+      <input id="alerts" placeholder="dewalt, ps5, lego, clearance grill">
+      <button class="notify" id="notify" type="button" hidden>Turn on notifications</button>
+    </div>
+  </div>
+
+  <div class="list" id="list"></div>
+  <button class="more" id="more" hidden>Show more</button>
+  <button class="toast" id="toast" hidden></button>
+
+  <footer>Deals come from the public Slickdeals and DealNews feeds; each title links to the original post. The feed refreshes every few minutes and this page checks for new deals every 30 seconds. Watchlist, target prices and alert keywords are saved in this browser only.</footer>
+</div>
+
+<script>
+const STORE_COLORS={"Home Depot":"#e2641b","Lowe's":"#1a4f9c","Walmart":"#0a6fd6","Target":"#cc1f2d","Best Buy":"#0b3a8a","Amazon":"#232f3e","Costco":"#c4202f","Kohl's":"#6b1d3a","Dicks Sporting Goods":"#146b4e"};
+const TABS=[["all","All"],["major","Major deals"],["clr","Clearance"],["today","New today"],["alerts","Alerts"],["watch","Watchlist"]];
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+let deals=[],meta=null,freshIds=new Set(),pending=null,knownIds=null,tab=store.get("dr.tab","all"),stores=new Set(),limit=60;
+let watch=store.get("dr.watch",{}); // id -> {target, title, price}
+$("#alerts").value=store.get("dr.alerts","");
+
+function normStore(s){return /^woot/i.test(s)?"Woot":s==="Costco Wholesale"?"Costco":s}
+function keywords(){return $("#alerts").value.split(",").map(s=>s.trim().toLowerCase()).filter(Boolean)}
+function isAlert(d){const t=d.title.toLowerCase();return keywords().some(k=>k.split(/\s+/).every(w=>t.includes(w)))}
+function isMajor(d){return (d.pct??0)>=50||(d.score??0)>=25||d.pick||dropped(d)}
+function dropped(d){const h=d.hist||[];return h.length>1&&h[h.length-1][1]<h[h.length-2][1]}
+function isToday(d){return Date.now()-Date.parse(d.seen)<864e5}
+function hitTarget(d){const w=watch[d.id];return w&&w.target!=null&&d.price!=null&&d.price<=w.target}
+function ago(iso){if(!iso)return"";const m=Math.round((Date.now()-Date.parse(iso))/6e4);return m<60?m+"m ago":m<1440?Math.round(m/60)+"h ago":Math.round(m/1440)+"d ago"}
+const money=n=>n==null?"":n===0?"FREE":"$"+(n>=100?Math.round(n).toLocaleString():n.toFixed(2).replace(/\.00$/,""));
+
+function filtered(t=tab){
+  const q=$("#q").value.trim().toLowerCase(),cat=$("#cat").value,maxp=parseFloat($("#maxp").value);
+  let r=deals.filter(d=>
+    (t==="all"||(t==="major"&&isMajor(d))||(t==="clr"&&d.clr)||(t==="today"&&isToday(d))||(t==="alerts"&&isAlert(d))||(t==="watch"&&watch[d.id]))
+    &&(!q||d.title.toLowerCase().includes(q))&&(!cat||d.cat===cat)
+    &&(!stores.size||stores.has(d.store))&&(isNaN(maxp)||(d.price!=null&&d.price<=maxp)));
+  return r;
+}
+function sorted(r){
+  const s=$("#sort").value;
+  const k={new:d=>-Date.parse(d.posted||d.seen),hot:d=>-(d.score??-99),pct:d=>-(d.pct??-1),low:d=>d.price??1e9}[s];
+  return r.sort((a,b)=>(hitTarget(b)-hitTarget(a))||(k(a)-k(b)));
+}
+function spark(h){
+  if(!h||h.length<2)return"";
+  const v=h.map(x=>x[1]),lo=Math.min(...v),hi=Math.max(...v),w=64,ht=18,sp=hi-lo||1;
+  const pts=v.map((y,i)=>`${(i/(v.length-1)*w).toFixed(1)},${(ht-2-(y-lo)/sp*(ht-4)).toFixed(1)}`).join(" ");
+  const last=pts.split(" ").pop().split(",");
+  return `<svg class="spark" width="${w+4}" height="${ht}" viewBox="-2 0 ${w+4} ${ht}" aria-label="Price history"><polyline points="${pts}" fill="none" stroke="var(--muted)" stroke-width="1.4"/><circle cx="${last[0]}" cy="${last[1]}" r="2.4" fill="var(--good)"/></svg>`;
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function row(d){
+  const col=STORE_COLORS[d.store]||"#5b6170",ini=d.store.replace(/[^A-Za-z ]/g,"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()||"•";
+  const w=watch[d.id],hit=hitTarget(d)||(tab!=="alerts"&&isAlert(d));
+  return `<article class="deal${hit?" hit":""}${freshIds.has(d.id)?" fresh":""}">
+    <div class="thumb${d.img?"":" noimg"}">${d.img?`<img src="${esc(d.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()">`:""}<div class="badge" style="background:${col}" title="${esc(d.store)}">${esc(ini)}</div></div>
+    <div class="main">
+      <a class="t" href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.title)}</a>
+      <div class="meta">
+        <span>${esc(d.store)}</span><span>${esc(d.cat)}</span>
+        ${d.clr?'<span class="clr">CLEARANCE</span>':""}
+        ${d.score!=null?`<span class="${d.score>=25?"hot":""}">▲ ${d.score}</span>`:""}
+        ${d.pick?'<span class="hot">Staff pick</span>':""}
+        ${d.rating?`<span>★ ${d.rating}</span>`:""}
+        ${dropped(d)?'<span class="drop">▼ price dropped</span>':""}
+        ${hitTarget(d)?'<span class="drop">✓ at your target</span>':""}
+        <span>${ago(d.posted||d.seen)}</span>
+      </div>
+      ${w?`<div class="target"><label for="t-${d.id}">Alert at ≤ $</label><input id="t-${d.id}" data-target="${d.id}" type="number" min="0" step="0.01" value="${w.target??""}" placeholder="price"></div>`:""}
+    </div>
+    <div class="side">
+      <div class="price${d.price==null?" na":""}">${d.price==null?"see deal":money(d.price)}</div>
+      ${d.was?`<span class="was">${money(d.was)}</span>`:""}${d.pct?`<span class="pct">−${d.pct}%</span>`:""}
+      ${spark(d.hist)}
+      <button class="star" data-watch="${d.id}" aria-pressed="${!!w}" aria-label="${w?"Remove from":"Add to"} watchlist">${w?"★":"☆"}</button>
+    </div></article>`;
+}
+function renderTabs(){
+  $("#tabs").innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" aria-pressed="${k===tab}">${l}<span class="n">${deals.length?filtered(k).length:""}</span></button>`).join("");
+}
+function renderStores(){
+  const c={};deals.forEach(d=>c[d.store]=(c[d.store]||0)+1);
+  const top=Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
+  stores.forEach(s=>{if(!top.includes(s))top.push(s)});
+  $("#stores").innerHTML=top.map(s=>`<button data-store="${esc(s)}" aria-pressed="${stores.has(s)}">${esc(s)} <span class="n">${c[s]||0}</span></button>`).join("");
+  const cats=[...new Set(deals.map(d=>d.cat))].sort(),cur=$("#cat").value;
+  $("#cat").innerHTML='<option value="">All categories</option>'+cats.map(x=>`<option${x===cur?" selected":""}>${esc(x)}</option>`).join("");
+}
+function render(){
+  renderTabs();
+  const list=$("#list");
+  if(!deals.length){
+    list.innerHTML=`<div class="empty"><h2>${meta===false?"Deal feed unavailable":"Loading deals…"}</h2>${meta===false?"The deal file could not be loaded. The page retries every 30 seconds.":""}</div>`;
+    $("#more").hidden=true;return;
+  }
+  const r=sorted(filtered());
+  if(!r.length){
+    const msg=tab==="watch"?"Tap ☆ on any deal to watch it and set a target price.":tab==="alerts"?"Add keywords above. Matching deals collect here and glow in every view.":"Nothing matches these filters. Clear the search or pick another store.";
+    list.innerHTML=`<div class="empty"><h2>No deals here yet</h2>${msg}</div>`;$("#more").hidden=true;return;
+  }
+  list.innerHTML=r.slice(0,limit).map(row).join("");
+  $("#more").hidden=r.length<=limit;$("#more").textContent=`Show more (${r.length-limit} left)`;
+}
+function renderStatus(){
+  if(!meta){return}
+  const src=Object.values(meta.sources||{}),ok=src.filter(v=>v==="ok").length;
+  $("#status").innerHTML=`<b>${meta.count}</b> deals · updated <b>${ago(meta.updatedAt)}</b><br>${ok}/${src.length} feeds live`;
+}
+
+document.addEventListener("click",e=>{
+  const t=e.target.closest("[data-tab],[data-store],[data-watch]");if(!t)return;
+  if(t.dataset.tab){tab=t.dataset.tab;store.set("dr.tab",tab);limit=60}
+  if(t.dataset.store){const s=t.dataset.store;stores.has(s)?stores.delete(s):stores.add(s);renderStores();limit=60}
+  if(t.dataset.watch){const id=t.dataset.watch,d=deals.find(x=>x.id===id);
+    if(watch[id])delete watch[id];else watch[id]={target:null,title:d?.title,price:d?.price};store.set("dr.watch",watch)}
+  render();
+});
+document.addEventListener("change",e=>{
+  const id=e.target.dataset?.target;if(!id||!watch[id])return;
+  const v=parseFloat(e.target.value);watch[id].target=isNaN(v)?null:v;store.set("dr.watch",watch);render();
+});
+let tmr;["#q","#maxp","#alerts"].forEach(s=>$(s).addEventListener("input",()=>{clearTimeout(tmr);tmr=setTimeout(()=>{store.set("dr.alerts",$("#alerts").value);limit=60;render()},200)}));
+["#cat","#sort"].forEach(s=>$(s).addEventListener("change",()=>{limit=60;render()}));
+$("#more").addEventListener("click",()=>{limit+=60;render()});
+setInterval(renderStatus,60000);
+render();
+
+async function load(){
+  try{
+    const r=await fetch("deals.json?t="+Date.now(),{cache:"no-store"});
+    if(!r.ok)throw new Error(r.status);
+    const data=await r.json();
+    if(meta&&data.updatedAt===meta.updatedAt)return;
+    const seen=new Set();
+    const next=(data.deals||[]).filter(d=>d&&d.id&&!seen.has(d.id)&&seen.add(d.id)).map(d=>({...d,store:normStore(d.store||"Online")}));
+    meta=data;renderStatus();
+    if(!knownIds){knownIds=new Set(next.map(d=>d.id));deals=next;renderStores();render();return}
+    const added=next.filter(d=>!knownIds.has(d.id));
+    next.forEach(d=>knownIds.add(d.id));
+    notifyMatches(added,next);
+    if(added.length&&window.scrollY>300){pending=next;added.forEach(d=>freshIds.add(d.id));showToast(added.length);return}
+    added.forEach(d=>freshIds.add(d.id));deals=next;renderStores();render();
+  }catch(e){
+    if(!deals.length){meta=false;render()}
+    $("#status").textContent="Can't reach the deal feed. Retrying…";
+  }
+}
+function showToast(n){const t=$("#toast");t.textContent=`${n} new deal${n>1?"s":""} ↑`;t.hidden=false}
+$("#toast").addEventListener("click",()=>{if(pending){deals=pending;pending=null}$("#toast").hidden=true;renderStores();render();window.scrollTo({top:0,behavior:"smooth"})});
+
+const notified=new Set(store.get("dr.notified",[]));
+function canNotify(){return "Notification" in window&&Notification.permission==="granted"}
+function notifyMatches(added,all){
+  if(!canNotify())return;
+  const hits=[...added.filter(isAlert),...all.filter(d=>hitTarget(d)&&!notified.has("t"+d.id))];
+  hits.slice(0,5).forEach(d=>{
+    const key=(hitTarget(d)?"t":"a")+d.id;if(notified.has(key))return;notified.add(key);
+    const n=new Notification(`${money(d.price)||"Deal"} · ${d.store}`,{body:d.title,icon:d.img||undefined,tag:d.id});
+    n.onclick=()=>{window.open(d.url,"_blank");n.close()};
+  });
+  store.set("dr.notified",[...notified].slice(-500));
+}
+if("Notification" in window&&Notification.permission==="default"){
+  $("#notify").hidden=false;
+  $("#notify").addEventListener("click",async()=>{await Notification.requestPermission();$("#notify").hidden=Notification.permission!=="default"});
+}
+load();setInterval(load,30000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)load()});
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+state.json
+site/deals.json
+deal-radar.html
+out/
+.env
+__pycache__/
