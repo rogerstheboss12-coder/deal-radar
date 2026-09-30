@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f1d17">
 <title>Deal Radar</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Deal Radar">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -73,6 +80,10 @@ details.more-filters>div{display:grid;gap:10px;margin-top:10px}
 .alertrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
 .alertrow input{flex:1 1 240px;min-width:0;font:13px var(--f-mono);color:var(--ink);background:transparent;border:1px dashed var(--line);border-radius:10px;padding:7px 10px}
 .ghost{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 12px var(--f-body);padding:7px 11px;border-radius:9px;cursor:pointer}
+.pushcode{display:grid;gap:8px;font-size:13px;color:var(--muted)}
+.pushcode p{margin:0}
+.pushcode textarea{width:100%;font:11px var(--f-mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px;resize:none}
+.pushcode button{justify-self:start}
 .help{margin:14px 0 0;font-size:13px;color:var(--muted);max-width:85ch}
 .help:empty{display:none}
 
@@ -173,6 +184,11 @@ footer{margin-top:36px;font-size:12px;color:var(--muted);max-width:75ch}
       <label for="alerts">Alert keywords</label>
       <input id="alerts" placeholder="kiton, isaia, macbook pro m4, arcteryx beta">
       <button class="ghost" id="notify" type="button" hidden>Turn on notifications</button>
+    </div>
+    <div class="pushcode" id="pushcode" hidden>
+      <p id="pushmsg"></p>
+      <textarea id="pushtext" readonly rows="3" aria-label="Notification code"></textarea>
+      <button class="ghost" id="pushcopy" type="button">Copy code</button>
     </div>
     </div></details>
   </div>
@@ -363,6 +379,8 @@ render();
 async function load(){
   nextCheck=Date.now()+30000;
   try{
+    if(meta){const m=await fetch("meta.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null);
+      if(m&&m.updatedAt===meta.updatedAt){renderStatus();return}}
     const r=await fetch("deals.json?t="+Date.now(),{cache:"no-store"});
     if(!r.ok)throw new Error(r.status);
     const data=await r.json();
@@ -371,8 +389,7 @@ async function load(){
     const next=(data.deals||[]).filter(d=>d&&d.id&&!seen.has(d.id)&&seen.add(d.id)).map(d=>({...d,store:normStore(d.store||"Online")}));
     meta=data;renderStatus();
     if(!knownIds){knownIds=new Set(next.map(d=>d.id));deals=next;renderChips();render();return}
-    const added=next.filter(d=>!knownIds.has(d.id));next.forEach(d=>knownIds.add(d.id));
-    notifyMatches(added,next);added.forEach(d=>freshIds.add(d.id));
+    const added=next.filter(d=>!knownIds.has(d.id));next.forEach(d=>knownIds.add(d.id));added.forEach(d=>freshIds.add(d.id));
     if(added.length&&window.scrollY>300){pending=next;const b=added.filter(isBest).length,t=$("#toast");
       t.textContent=`${added.length} new deal${added.length>1?"s":""}${b?` · ${b} green`:""} ↑`;t.hidden=false;return}
     if(document.activeElement?.matches?.("[data-target],#q,#maxp,#alerts")&&document.activeElement.dataset.target){pending=next;return}
@@ -381,22 +398,36 @@ async function load(){
 }
 $("#toast").addEventListener("click",()=>{if(pending){deals=pending;pending=null}$("#toast").hidden=true;renderChips();render();window.scrollTo({top:0,behavior:"smooth"})});
 
-const notified=new Set(ls.get("dr.notified",[]));
-const canNotify=()=>"Notification" in window&&Notification.permission==="granted";
-function notifyMatches(added,all){
-  if(!canNotify())return;
-  const hits=[...added.filter(d=>isAlert(d)||isBest(d)),...all.filter(hitTarget)];
-  hits.slice(0,5).forEach(d=>{
-    const key=(hitTarget(d)?"t":"a")+d.id;if(notified.has(key))return;notified.add(key);
-    const n=new Notification(`${money(d.price)||"Deal"} · ${d.store}`,{body:(d._p?.why||[]).join(" · ")+"\n"+d.title,icon:d.img||undefined,tag:d.id});
-    n.onclick=()=>{window.open(d.url,"_blank");n.close()};
-  });
-  ls.set("dr.notified",[...notified].slice(-500));
+// Installable app + push notifications (sent by the GitHub job for new green deals).
+const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+let swReg=null;
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").then(r=>{swReg=r;refreshPushButton()}).catch(()=>{});
+const b64=s=>{const p="=".repeat((4-s.length%4)%4),raw=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(raw,c=>c.charCodeAt(0))};
+async function refreshPushButton(){
+  const btn=$("#notify");btn.hidden=false;
+  if(ios&&!standalone){btn.textContent="Get notifications: add to Home Screen first";return}
+  if(!swReg||!("PushManager" in window)){btn.textContent="Notifications not supported here";btn.disabled=true;return}
+  const sub=await swReg.pushManager.getSubscription();
+  btn.textContent=sub?"Notifications on · show code":"Turn on phone notifications";
 }
-if("Notification" in window&&Notification.permission==="default"){
-  $("#notify").hidden=false;
-  $("#notify").addEventListener("click",async()=>{await Notification.requestPermission();$("#notify").hidden=Notification.permission!=="default"});
-}
+$("#notify").addEventListener("click",async()=>{
+  if(ios&&!standalone){$("#pushcode").hidden=false;$("#pushtext").hidden=true;$("#pushcopy").hidden=true;
+    $("#pushmsg").textContent="On iPhone: tap Share, then Add to Home Screen. Open Deal Radar from your Home Screen and tap this button again.";return}
+  try{
+    if(await Notification.requestPermission()!=="granted"){$("#pushcode").hidden=false;$("#pushmsg").textContent="Notifications are blocked. Allow them for this site in your browser settings, then try again.";return}
+    const key=(await (await fetch("vapid_public.txt")).text()).trim();
+    const sub=(await swReg.pushManager.getSubscription())||await swReg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(key)});
+    $("#pushcode").hidden=false;$("#pushtext").hidden=false;$("#pushcopy").hidden=false;
+    $("#pushtext").value=JSON.stringify(sub);
+    $("#pushmsg").textContent="Almost done: copy this code and paste it to Claude to connect this device. You'll then get a notification for each new green deal.";
+    refreshPushButton();
+  }catch(e){$("#pushcode").hidden=false;$("#pushmsg").textContent="Couldn't turn on notifications: "+e.message}
+});
+$("#pushcopy").addEventListener("click",async()=>{
+  try{await navigator.clipboard.writeText($("#pushtext").value);$("#pushcopy").textContent="Copied"}
+  catch{$("#pushtext").select();$("#pushcopy").textContent="Selected, copy it"}
+});
 load();setInterval(load,30000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)load()});
 </script>

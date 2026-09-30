@@ -509,6 +509,38 @@ def flags(d):
     return f
 
 
+def is_green(d):
+    """Mirror of the page's green rule: a real 50%+ markdown in the shopper's lanes."""
+    f = set(d.get("flags") or [])
+    return ((d.get("pct") or 0) >= 50 and d.get("was") and d.get("price") is not None
+            and "roundup" not in f and "hide" not in f and bool({"pc", "tailor", "brand"} & f))
+
+
+def send_pushes(deals):
+    """Web Push to every subscribed device. Needs VAPID_PRIVATE_KEY and PUSH_SUBSCRIPTIONS
+    (a JSON list of browser subscriptions) in the environment; silently skips otherwise."""
+    key, subs = os.environ.get("VAPID_PRIVATE_KEY"), os.environ.get("PUSH_SUBSCRIPTIONS")
+    if not deals or not key or not subs:
+        return
+    try:
+        from pywebpush import webpush, WebPushException
+        from py_vapid import Vapid
+    except ImportError:
+        print("pywebpush not installed; skipping push", file=sys.stderr)
+        return
+    vapid = Vapid.from_pem(key.encode())
+    subs = json.loads(subs)
+    for sub in subs if isinstance(subs, list) else [subs]:
+        for d in deals[:5]:
+            msg = {"title": f"{'$%g' % d['price']} · {d['pct']}% off · {d['store']}",
+                   "body": d["title"][:140], "url": d["url"], "icon": d.get("img"), "tag": d["id"]}
+            try:
+                webpush(sub, json.dumps(msg), vapid_private_key=vapid,
+                        vapid_claims={"sub": "mailto:deal-radar@users.noreply.github.com"}, ttl=3600)
+            except WebPushException as e:
+                print(f"push failed: {e}", file=sys.stderr)
+
+
 def main():
     t = now()
     known = {}
@@ -520,6 +552,7 @@ def main():
             print(f"no previous state ({e}); starting fresh", file=sys.stderr)
     elif os.path.exists(STATE):
         known = json.load(open(STATE))["deals"]
+    was_green = {k for k, v in known.items() if is_green(v)}
 
     group = (t.minute // 5) % 3 if known else None   # first run fetches every search
     feeds = list(CORE) + [("sd", "q:" + q, SD + "q=" + urllib.parse.quote_plus(q))
@@ -570,8 +603,15 @@ def main():
     ranked = sorted(known.values(), key=lambda d: (d.get("posted") or d["seen"]), reverse=True)[:MAX_DEALS]
     os.makedirs(SITE, exist_ok=True)
     out = os.path.join(SITE, "deals.json")
-    json.dump({"updatedAt": stamp, "count": len(ranked), "sources": sources,
-               "errors": errors[:8], "deals": ranked}, open(out, "w"), separators=(",", ":"))
+    for d in ranked:   # keep the file lean
+        if len(d.get("hist") or []) < 2:
+            d.pop("hist", None)
+        d.pop("tags", None)
+    status = {"updatedAt": stamp, "count": len(ranked), "sources": sources, "errors": errors[:8]}
+    json.dump({**status, "deals": ranked}, open(out, "w"), separators=(",", ":"))
+    json.dump(status, open(os.path.join(SITE, "meta.json"), "w"), separators=(",", ":"))
+    if known and STATE_URL:   # only from the live job, never on the very first run
+        send_pushes([d for d in ranked if is_green(d) and d["id"] not in was_green])
     ok = sum(v == "ok" for v in sources.values())
     print(f"{len(ranked)} deals, {ok}/{len(sources)} feeds ok, bytes={os.path.getsize(out)}")
     if errors:
