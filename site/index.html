@@ -62,6 +62,8 @@ h1 .dot{width:12px;height:12px;border-radius:50%;background:var(--mark);box-shad
 .meta{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:5px;font:500 12px var(--f-mono);color:var(--muted)}
 .meta .hot{color:var(--mark);font-weight:600}
 .meta .drop{color:var(--good);font-weight:600}
+.meta .spec{border:1px solid var(--line);padding:0 5px;border-radius:3px;color:var(--ink)}
+.meta .src{opacity:.75}
 .meta .clr{background:var(--tag);color:var(--tag-ink);padding:0 5px;border-radius:3px}
 .side{display:grid;justify-items:end;gap:6px}
 .price{background:var(--tag);color:var(--tag-ink);font:600 17px var(--f-mono);padding:4px 9px 4px 14px;position:relative;clip-path:polygon(8px 0,100% 0,100% 100%,8px 100%,0 50%);font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -99,6 +101,7 @@ footer{margin-top:28px;font-size:12px;color:var(--muted);max-width:65ch}
         <option value="hot">Hottest</option>
         <option value="pct">Biggest % off</option>
         <option value="low">Lowest price</option>
+        <option value="power">Most powerful (laptops)</option>
       </select>
     </div>
     <div class="stores" id="stores" aria-label="Stores"></div>
@@ -113,22 +116,35 @@ footer{margin-top:28px;font-size:12px;color:var(--muted);max-width:65ch}
   <button class="more" id="more" hidden>Show more</button>
   <button class="toast" id="toast" hidden></button>
 
-  <footer>Deals come from the public Slickdeals and DealNews feeds; each title links to the original post. The feed refreshes every few minutes and this page checks for new deals every 30 seconds. Watchlist, target prices and alert keywords are saved in this browser only.</footer>
+  <footer>Deals come from public feeds: Slickdeals, DealNews, Ben's Bargains, camelcamelcamel price drops, and the r/buildapcsales, r/LaptopDeals and r/frugalmalefashion communities. Each title links to the original post. "Price anomalies" flags reported price mistakes, 70%+ discounts and big drops since a deal was first seen; verify before you buy, since retailers often cancel mistake orders. The feed refreshes every few minutes and this page checks for new deals every 30 seconds. Watchlist, target prices and alert keywords are saved in this browser only.</footer>
 </div>
 
 <script>
 const STORE_COLORS={"Home Depot":"#e2641b","Lowe's":"#1a4f9c","Walmart":"#0a6fd6","Target":"#cc1f2d","Best Buy":"#0b3a8a","Amazon":"#232f3e","Costco":"#c4202f","Kohl's":"#6b1d3a","Dicks Sporting Goods":"#146b4e"};
-const TABS=[["all","All"],["major","Major deals"],["clr","Clearance"],["today","New today"],["alerts","Alerts"],["watch","Watchlist"]];
+const TABS=[["all","All"],["major","Major deals"],["anomaly","Price anomalies"],["p95","95%+ off & free"],["power","Power laptops"],["brand","Premium brands"],["clr","Clearance"],["today","New today"],["alerts","Alerts"],["watch","Watchlist"]];
+const has=(d,f)=>(d.flags||[]).includes(f);
 const $=s=>document.querySelector(s);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
 let deals=[],meta=null,freshIds=new Set(),pending=null,knownIds=null,tab=store.get("dr.tab","all"),stores=new Set(),limit=60;
 let watch=store.get("dr.watch",{}); // id -> {target, title, price}
 $("#alerts").value=store.get("dr.alerts","");
 
-function normStore(s){return /^woot/i.test(s)?"Woot":s==="Costco Wholesale"?"Costco":s}
+function normStore(s){return /^woot/i.test(s)?"Woot":/^digitalkeys/i.test(s)?"Digitalkeysbox":s==="Costco Wholesale"?"Costco":s}
 function keywords(){return $("#alerts").value.split(",").map(s=>s.trim().toLowerCase()).filter(Boolean)}
 function isAlert(d){const t=d.title.toLowerCase();return keywords().some(k=>k.split(/\s+/).every(w=>t.includes(w)))}
-function isMajor(d){return (d.pct??0)>=50||(d.score??0)>=25||d.pick||dropped(d)}
+function isMajor(d){return (d.pct??0)>=50||(d.score??0)>=25||d.pick||dropped(d)||has(d,"anomaly")}
+function specs(t){
+  const out=[],gpu=t.match(/RTX\s?(\d{4})(\s?Ti)?/i),m=t.match(/\bM([3-6])\s?(Pro|Max|Ultra)?\b/),cpu=t.match(/Ryzen\s?(AI\s)?\d{1,3}|Core\s?Ultra\s?\d|\bi[579]\b/i),ram=t.match(/\b(8|16|24|32|36|48|64|96|128)\s?GB\b/i);
+  if(gpu)out.push("RTX "+gpu[1]+(gpu[2]?" Ti":""));if(m&&/macbook|mac\b/i.test(t))out.push("M"+m[1]+(m[2]?" "+m[2]:""));
+  if(cpu)out.push(cpu[0].replace(/\s+/g," "));if(ram)out.push(ram[1]+"GB");return out;
+}
+function power(t){
+  let s=0;const g=t.match(/RTX\s?(\d{2})(\d{2})/i);
+  if(g){const tier=+g[2],gen=+g[1];s+=tier>=90?100:tier>=80?85:tier>=70?70:tier>=60?50:30;s+=gen>=50?8:0;if(/\d{4}\s?Ti/i.test(t))s+=5}
+  const m=t.match(/\bM([3-6])\s?(Pro|Max|Ultra)?\b/);if(m&&/macbook|mac\b/i.test(t))s=Math.max(s,(m[2]==="Max"||m[2]==="Ultra"?90:m[2]==="Pro"?72:45)+(+m[1])*2);
+  const r=t.match(/\b(16|24|32|36|48|64|96|128)\s?GB\b/i);if(r)s+=Math.min(+r[1],128)/8;
+  if(/ryzen\s?(ai\s)?9|ultra\s?9|\bi9\b/i.test(t))s+=8;return s;
+}
 function dropped(d){const h=d.hist||[];return h.length>1&&h[h.length-1][1]<h[h.length-2][1]}
 function isToday(d){return Date.now()-Date.parse(d.seen)<864e5}
 function hitTarget(d){const w=watch[d.id];return w&&w.target!=null&&d.price!=null&&d.price<=w.target}
@@ -138,14 +154,14 @@ const money=n=>n==null?"":n===0?"FREE":"$"+(n>=100?Math.round(n).toLocaleString(
 function filtered(t=tab){
   const q=$("#q").value.trim().toLowerCase(),cat=$("#cat").value,maxp=parseFloat($("#maxp").value);
   let r=deals.filter(d=>
-    (t==="all"||(t==="major"&&isMajor(d))||(t==="clr"&&d.clr)||(t==="today"&&isToday(d))||(t==="alerts"&&isAlert(d))||(t==="watch"&&watch[d.id]))
+    (t==="all"||(t==="major"&&isMajor(d))||(["anomaly","p95","power","brand"].includes(t)&&has(d,t))||(t==="clr"&&d.clr)||(t==="today"&&isToday(d))||(t==="alerts"&&isAlert(d))||(t==="watch"&&watch[d.id]))
     &&(!q||d.title.toLowerCase().includes(q))&&(!cat||d.cat===cat)
-    &&(!stores.size||stores.has(d.store))&&(isNaN(maxp)||(d.price!=null&&d.price<=maxp)));
+    &&(!stores.size||stores.has(t==="brand"?d.brand:d.store))&&(isNaN(maxp)||(d.price!=null&&d.price<=maxp)));
   return r;
 }
 function sorted(r){
   const s=$("#sort").value;
-  const k={new:d=>-Date.parse(d.posted||d.seen),hot:d=>-(d.score??-99),pct:d=>-(d.pct??-1),low:d=>d.price??1e9}[s];
+  const k={new:d=>-Date.parse(d.posted||d.seen),hot:d=>-(d.score??-99),pct:d=>-(d.pct??-1),low:d=>d.price??1e9,power:d=>-power(d.title)}[s];
   return r.sort((a,b)=>(hitTarget(b)-hitTarget(a))||(k(a)-k(b)));
 }
 function spark(h){
@@ -164,8 +180,12 @@ function row(d){
     <div class="main">
       <a class="t" href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.title)}</a>
       <div class="meta">
-        <span>${esc(d.store)}</span><span>${esc(d.cat)}</span>
+        <span>${esc(d.store)}</span><span class="src">via ${esc(d.src||"")}</span>
         ${d.clr?'<span class="clr">CLEARANCE</span>':""}
+        ${has(d,"anomaly")?'<span class="hot">⚠ anomaly</span>':""}
+        ${has(d,"free")?'<span class="drop">FREE</span>':""}
+        ${d.brand?`<span>${esc(d.brand)}</span>`:""}
+        ${has(d,"laptop")?specs(d.title).map(x=>`<span class="spec">${esc(x)}</span>`).join(""):""}
         ${d.score!=null?`<span class="${d.score>=25?"hot":""}">▲ ${d.score}</span>`:""}
         ${d.pick?'<span class="hot">Staff pick</span>':""}
         ${d.rating?`<span>★ ${d.rating}</span>`:""}
@@ -186,7 +206,7 @@ function renderTabs(){
   $("#tabs").innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" aria-pressed="${k===tab}">${l}<span class="n">${deals.length?filtered(k).length:""}</span></button>`).join("");
 }
 function renderStores(){
-  const c={};deals.forEach(d=>c[d.store]=(c[d.store]||0)+1);
+  const key=tab==="brand"?"brand":"store",c={};deals.forEach(d=>{if(d[key])c[d[key]]=(c[d[key]]||0)+1});
   const top=Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,10).map(e=>e[0]);
   stores.forEach(s=>{if(!top.includes(s))top.push(s)});
   $("#stores").innerHTML=top.map(s=>`<button data-store="${esc(s)}" aria-pressed="${stores.has(s)}">${esc(s)} <span class="n">${c[s]||0}</span></button>`).join("");
@@ -216,7 +236,10 @@ function renderStatus(){
 
 document.addEventListener("click",e=>{
   const t=e.target.closest("[data-tab],[data-store],[data-watch]");if(!t)return;
-  if(t.dataset.tab){tab=t.dataset.tab;store.set("dr.tab",tab);limit=60}
+  if(t.dataset.tab){const was=tab;tab=t.dataset.tab;store.set("dr.tab",tab);limit=60;
+    if((was==="brand")!==(tab==="brand"))stores.clear();
+    if(tab==="power"&&$("#sort").value==="new")$("#sort").value="power";
+    renderStores()}
   if(t.dataset.store){const s=t.dataset.store;stores.has(s)?stores.delete(s):stores.add(s);renderStores();limit=60}
   if(t.dataset.watch){const id=t.dataset.watch,d=deals.find(x=>x.id===id);
     if(watch[id])delete watch[id];else watch[id]={target:null,title:d?.title,price:d?.price};store.set("dr.watch",watch)}
