@@ -51,6 +51,14 @@ SEARCHES = [
     "gaming laptop", "rtx laptop", "macbook pro", "workstation laptop", "rtx 5090", "rtx 5080",
     "patagonia", "arcteryx", "north face", "fjallraven", "canada goose", "outdoor research",
     "black diamond", "cotopaxi", "filson", "yeti", "salomon", "hoka",
+    # Creative machines on a budget
+    "macbook air", "open box macbook", "refurbished macbook", "mac mini", "mini pc", "imac",
+    # Tailoring, shoes and accessories
+    "kiton", "isaia", "cesare attolini", "luigi borrelli", "sartorio", "edward green",
+    "crockett jones", "alden shoes", "drakes", "charvet",
+    # Off-price and luxury retailer sales
+    "saks off 5th", "nordstrom rack", "neiman marcus last call", "gilt", "yoox",
+    "mr porter sale", "ssense sale", "end clothing",
 ]
 
 CATEGORIES = [
@@ -78,7 +86,22 @@ BRANDS = [
     ("Lululemon", r"lululemon"), ("Carhartt", r"carhartt"),
 ]
 FREE_ITEM = re.compile(r"^\s*(\[[^\]]*\]\s*)?free\b(?! shipping)|\bfree after (rebate|credit|cashback)|\$0(\.00)?\b|100\s?% off", re.I)
-JUNK_FREE = re.compile(r"buy one|bogo|\bwin\b|sweepstakes|giveaway|w/ (any )?purchase|with (any )?purchase|free shipping|trial|sample", re.I)
+JUNK_FREE = re.compile(r"buy one|bogo|\bwin\b|sweepstakes|giveaway|w/ (any )?purchase|with (any )?purchase|free shipping|trial|sample|\bevent\b|\bends\b|donat|members?\b|reward|educator|teacher|student|first \d+|ages \d|kids|workshop|class\b|\bapp\b|in-store|in store|burger|fries|pizza|coffee|drink|taco|chicken|salad|restaurant|dairy queen|smashburger|\bday\b", re.I)
+TAILORING = [
+    ("Kiton", r"\bkiton\b"), ("Isaia", r"\bisaia\b"), ("Cesare Attolini", r"attolini"),
+    ("Luigi Borrelli", r"borrelli"), ("Sartorio", r"sartorio"), ("Edward Green", r"edward green"),
+    ("Crockett & Jones", r"crockett (&|and) jones"), ("Alden", r"\balden\b"),
+    ("Drake's", r"\bdrake'?s\b(?! (hotel|cake))"), ("Charvet", r"charvet"),
+]
+LUX_STORES = re.compile(r"saks|off 5th|nordstrom|neiman|last call|gilt|yoox|mr ?porter|ssense|end\.? clothing|matches", re.I)
+CREATIVE = re.compile(r"macbook|mac mini|imac|mac studio", re.I)
+DESKTOP = re.compile(r"mac mini|mac studio|imac|mini pc|desktop|gaming pc|tower\b", re.I)
+MENS_FORMAL = re.compile(r"\bsuits?\b|blazer|sport ?coat|dress shirt|\bties?\b|oxford shoe|loafer|brogue|cashmere|tailor|menswear|luxury", re.I)
+ACCESSORY = re.compile(r"\bhub\b|dock|\bcase\b|charger|sleeve|\bstand\b|adapter|cable|keyboard|mouse|screen protector|backpack|bag\b|skin\b|cooling pad", re.I)
+# Enough CPU/RAM for real video editing: Apple silicon, or a fast x86 chip with 16GB+.
+CREATIVE_SPEC = re.compile(r"\bm[1-6]\b(?! ?\.2)|apple silicon|(ryzen\s?[79]|ryzen ai|core\s?(ultra\s?)?[79]|\bi[79]\b).*\b(16|24|32|48|64)\s?gb|\b(16|24|32|48|64)\s?gb\b.*(ryzen\s?[79]|ryzen ai|core\s?(ultra\s?)?[79]|\bi[79]\b)", re.I)
+REFURB = re.compile(r"refurb|renewed|open[- ]box|pre-owned|certified", re.I)
+HIDE = re.compile(r"windows 1[01]|office (pro|home|20\d\d)|microsoft 365|license|product key|lifetime (license|subscription|access)|subscription|paramount\+|netflix|hulu|disney\+|peacock|max streaming|vpn|free trial|streaming|\bpet\b|\bdog\b|\bcat\b|puppy|kitten|litter", re.I)
 ANOMALY_WORDS = re.compile(r"price (mistake|error|glitch)|pricing (error|mistake)|\bmispriced\b|\bpenny (deal|item|list|find)s?\b|\$0?\.01\b|\bPM\b.*\bYMMV\b", re.I)
 
 STORE_NAMES = {
@@ -347,6 +370,25 @@ def flags(d):
     if brand:
         f.append("brand")
         d["brand"] = brand
+    tailor = next((name for name, pat in TAILORING if re.search(pat, t, re.I)), None)
+    if tailor and d.get("store") != "eBay":
+        f.append("tailor")
+        d["brand"] = tailor
+    elif (LUX_STORES.search(t + " " + (d.get("store") or "")) and d.get("store") != "eBay"
+          and MENS_FORMAL.search(t) and not re.search(r"women|womens|ladies|sneaker|running", t, re.I)):
+        f.append("tailor")
+    is_pc = ("laptop" in f) or bool(DESKTOP.search(t)) or bool(CREATIVE.search(t))
+    if is_pc:
+        f.append("pc")
+        if DESKTOP.search(t) and HIGH_COMPUTE.search(t) and "power" not in f:
+            f.append("power")
+    if (is_pc and d.get("price") is not None and 150 <= d["price"] <= 500
+            and not ACCESSORY.search(t) and CREATIVE_SPEC.search(t)):
+        f.append("creative")
+    if REFURB.search(t):
+        f.append("refurb")
+    if HIDE.search(t) or d.get("cat") == "Toys & Kids":
+        f.append("hide")
     pct = d.get("pct") or 0
     genuine_free = FREE_ITEM.search(t) and not JUNK_FREE.search(t)
     if (d.get("free") or d.get("price") == 0) and genuine_free:
