@@ -15,6 +15,7 @@ import time
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -543,34 +544,54 @@ def send_pushes(deals):
 
 def main():
     t = now()
-    known = {}
+    known, prev_updated = {}, None
     if STATE_URL:
         try:
             prev = json.loads(get(STATE_URL + "?t=" + str(int(time.time()))))
             known = {d["id"]: d for d in prev.get("deals", [])}
+            prev_updated = prev.get("updatedAt")
         except Exception as e:
             print(f"no previous state ({e}); starting fresh", file=sys.stderr)
     elif os.path.exists(STATE):
         known = json.load(open(STATE))["deals"]
     was_green = {k for k, v in known.items() if is_green(v)}
+    known_prev_ranked = [dict(v) for v in known.values()]
 
     group = (t.minute // 5) % 3 if known else None   # first run fetches every search
     feeds = list(CORE) + [("sd", "q:" + q, SD + "q=" + urllib.parse.quote_plus(q))
                           for i, q in enumerate(SEARCHES) if group is None or i % 3 == group]
 
-    fresh, errors, sources = {}, [], {}
+    # Different sites are fetched in parallel; requests to the same site stay
+    # sequential with a short pause, so no single site sees a burst.
+    by_host = {}
     for kind, tag, url in feeds:
-        try:
-            for d in PARSERS[kind](tag, get(url)):
-                if d["id"] in fresh:
-                    fresh[d["id"]]["tags"] = sorted(set(fresh[d["id"]]["tags"] + d["tags"]))
-                else:
-                    fresh[d["id"]] = d
-            sources[tag] = "ok"
-        except Exception as e:  # one bad feed shouldn't stop the rest
-            errors.append(f"{tag}: {e}")
-            sources[tag] = "error"
-        time.sleep(4 if kind == "reddit" else 0.7)
+        by_host.setdefault(urllib.parse.urlparse(url).netloc, []).append((kind, tag, url))
+
+    def run_host(jobs):
+        results = []
+        for i, (kind, tag, url) in enumerate(jobs):
+            if i:
+                time.sleep(4 if kind == "reddit" else 0.5)
+            try:
+                results.append((tag, PARSERS[kind](tag, get(url)), None))
+            except Exception as e:  # one bad feed shouldn't stop the rest
+                results.append((tag, [], e))
+        return results
+
+    fresh, errors, sources = {}, [], {}
+    with ThreadPoolExecutor(max_workers=len(by_host)) as pool:
+        for results in pool.map(run_host, by_host.values()):
+            for tag, found, err in results:
+                if err:
+                    errors.append(f"{tag}: {err}")
+                    sources[tag] = "error"
+                    continue
+                sources[tag] = "ok"
+                for d in found:
+                    if d["id"] in fresh:
+                        fresh[d["id"]]["tags"] = sorted(set(fresh[d["id"]]["tags"] + d["tags"]))
+                    else:
+                        fresh[d["id"]] = d
 
     stamp = iso(t)
     too_old = iso(t - timedelta(days=MAX_AGE_DAYS))
@@ -611,9 +632,20 @@ def main():
     json.dump({**status, "deals": ranked}, open(out, "w"), separators=(",", ":"))
     json.dump(status, open(os.path.join(SITE, "meta.json"), "w"), separators=(",", ":"))
     if os.environ.get("TEST_PUSH") == "true":
-        send_pushes([{"id": "test", "price": 0, "pct": 100, "store": "Deal Radar",
-                      "title": "Test notification: your phone is connected. Green deals will arrive like this.",
-                      "url": "https://rogerstheboss12-coder.github.io/deal-radar/", "img": None}])
+        # A real deal: the top green one, else the biggest known discount in the shopper's lanes.
+        pool = [d for d in ranked if is_green(d)] or sorted(
+            [d for d in ranked if d.get("pct") and d.get("price") is not None
+             and {"pc", "tailor", "brand"} & set(d.get("flags") or []) and "roundup" not in d.get("flags", [])],
+            key=lambda d: -d["pct"])
+        send_pushes(pool[:1])
+    fingerprint = sorted((d["id"], d.get("price"), tuple(d.get("flags") or [])) for d in ranked)
+    prev_fp = sorted((d["id"], d.get("price"), tuple(d.get("flags") or [])) for d in known_prev_ranked)
+    fresh_enough = prev_updated and (t - datetime.strptime(prev_updated, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)) < timedelta(minutes=10)
+    changed = not (fingerprint == prev_fp and fresh_enough)
+    if os.environ.get("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+            fh.write(f"changed={'true' if changed else 'false'}\n")
+    print("changed" if changed else "no changes; skipping deploy")
     if known and STATE_URL:   # only from the live job, never on the very first run
         send_pushes([d for d in ranked if is_green(d) and d["id"] not in was_green])
     ok = sum(v == "ok" for v in sources.values())
