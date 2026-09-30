@@ -122,6 +122,7 @@ details.more-filters>div{display:grid;gap:10px;margin-top:10px}
 .deal a.t:hover{text-decoration:underline}
 .meta{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:auto;padding-top:2px;font:500 11px var(--f-mono);color:var(--muted)}
 .meta .spec{border:1px solid var(--line);padding:0 5px;border-radius:4px;color:var(--ink)}
+.meta .nofit{color:var(--warn)}
 .meta .hot{color:var(--cut);font-weight:700}
 .target{position:relative;z-index:2;display:flex;gap:6px;align-items:center;font:12px var(--f-mono);color:var(--muted)}
 .target input{width:88px;font:12px var(--f-mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:4px 6px}
@@ -217,7 +218,7 @@ footer{margin-top:36px;font-size:12px;color:var(--muted);max-width:75ch}
   <button class="more" id="more" hidden>Show more</button>
   <button class="toast" id="toast" hidden></button>
 
-  <footer>Gold cards are Golden Finds: a real 90%+ markdown on a men's item worth $100+ at full price in your lanes, a reported price error on a computer, or a new computer listed under a quarter of what its specs normally cost. They always send a notification. Green cards are the 20 absolute best for you: real markdowns of 50% or more on men's items of $40+ (never women's) in PCs, tailoring or outdoor brands, ranked by % off and dollars saved, at most 4 per store. Faded cards have dropped out of the source feeds. Deals come from public feeds (Slickdeals, DealNews, 9to5Toys, MacRumors, Windows Central, Gear Patrol, Put This On, Stitchdown, Dappered, No Man Walks Alone, Skoaktiebolaget, camelcamelcamel and Reddit deal communities) and each links to the original post. Software keys, subscriptions, kids, toys and pet deals are hidden. Retailers often cancel price-mistake orders, so check fast. Watchlist, targets and alerts are saved in this browser only.</footer>
+  <footer>Clothing and shoes are matched to your sizes where the store lists them: S/M/L, suits 36/38/40 (EU 46–50), any pants, shoes US 6.5–10. Out-of-size items never turn green or gold and are left out of My Picks. Gold cards are Golden Finds: a real 90%+ markdown on a men's item worth $100+ at full price in your lanes, a reported price error on a computer, or a new computer listed under a quarter of what its specs normally cost. They always send a notification. Green cards are the 20 absolute best for you: real markdowns of 50% or more on men's items of $40+ (never women's) in PCs, tailoring or outdoor brands, ranked by % off and dollars saved, at most 4 per store. Faded cards have dropped out of the source feeds. Deals come from public feeds (Slickdeals, DealNews, 9to5Toys, MacRumors, Windows Central, Gear Patrol, Put This On, Stitchdown, Dappered, No Man Walks Alone, Skoaktiebolaget, camelcamelcamel and Reddit deal communities) and each links to the original post. Software keys, subscriptions, kids, toys and pet deals are hidden. Retailers often cancel price-mistake orders, so check fast. Watchlist, targets and alerts are saved in this browser only.</footer>
 </div>
 
 <script>
@@ -243,7 +244,7 @@ const isAlert=d=>{const t=d.title.toLowerCase();return keywords().some(k=>k.spli
 const dropped=d=>{const h=d.hist||[];return h.length>1&&h[h.length-1][1]<h[h.length-2][1]};
 const isToday=d=>Date.now()-Date.parse(d.seen)<864e5;
 const hitTarget=d=>{const w=watch[d.id];return !!(w&&w.target!=null&&d.price!=null&&d.price<=w.target)};
-const isPick=d=>has(d,"menswear")&&(d.pct||0)>=50||has(d,"creative")||has(d,"tailor")||has(d,"brand")||(has(d,"pc")&&has(d,"anomaly"))||(has(d,"power")&&(d.pct??0)>=30);
+const isPick=d=>!has(d,"nofit")&&(has(d,"menswear")&&(d.pct||0)>=50||has(d,"creative")||has(d,"tailor")||has(d,"brand")||(has(d,"pc")&&has(d,"anomaly"))||(has(d,"power")&&(d.pct??0)>=30));
 const isMajor=d=>(d.pct??0)>=50||(d.score??0)>=25||d.pick||dropped(d)||has(d,"anomaly");
 
 // How good a deal is for this shopper, and why. Green = a real 50%+ markdown
@@ -328,6 +329,8 @@ function card(d){
       <div class="meta">
         ${has(d,"pc")?specs(d.title).map(x=>`<span class="spec">${esc(x)}</span>`).join(""):""}
         ${d.brand&&!best?`<span>${esc(d.brand)}</span>`:""}
+        ${d.fit===true&&d.sizes?.length?`<span class="spec">Your size: ${esc(d.sizes.join(", "))}</span>`:""}
+        ${d.fit===false?`<span class="nofit">Not in your size</span>`:""}
         ${d.score!=null?`<span class="${d.score>=25?"hot":""}">▲${d.score}</span>`:""}
         <span>${ago(d.posted||d.seen)} ago · ${esc(d.src)}</span>
       </div>

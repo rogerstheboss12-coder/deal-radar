@@ -497,6 +497,65 @@ SHOPIFY_STORES = {"nmwa": ("No Man Walks Alone", "https://www.nomanwalksalone.co
 OUTDOOR_SHOPS = {"evo-patagonia", "evo-tnf", "evo-mh", "cotopaxi", "filson", "or"}
 
 
+# The shopper's sizes. Pants: any size. Unknown sizes (most feed posts) are not filtered.
+SHOE_WORDS = re.compile(r"shoe|boot|loafer|oxford|derby|brogue|sneaker|trainer|chukka|slipper|moccasin|monk|mule|sandal", re.I)
+PANT_WORDS = re.compile(r"\bpants?\b|trouser|jeans?\b|chino|shorts?\b|slacks", re.I)
+SUIT_WORDS = re.compile(r"\bsuit\b|blazer|sport ?coat|jacket|tuxedo|overcoat|topcoat", re.I)
+SHIRT_WORDS = re.compile(r"shirt", re.I)
+ALPHA_OK = re.compile(r"^(s|m|l|small|medium|large|sm|md|lg)$", re.I)
+ALPHA_ANY = re.compile(r"^(\d?x{0,4}[sl]|m|xs|xxs|\d?xl|x+l|small|medium|large|sm|md|lg|one size|os)$", re.I)
+
+
+def size_fits(size, title, store_tag=""):
+    """True/False when this size label can be judged for the shopper, None when unclear."""
+    raw = size.strip()
+    if not raw or raw.lower() in ("default title", "one size", "os", "o/s"):
+        return None
+    if ALPHA_ANY.match(raw):
+        return bool(ALPHA_OK.match(raw))
+    m = re.search(r"(\d{1,2}(?:\.5)?)", raw)
+    if not m:
+        return None
+    n = float(m.group(1))
+    u = raw.upper()
+    if PANT_WORDS.search(title) and not SUIT_WORDS.search(title):
+        return True
+    if SHOE_WORDS.search(title) or store_tag == "herring":
+        if "UK" in u or (store_tag == "herring" and n < 20):   # Herring lists UK sizes
+            return 6 <= n <= 9.5
+        if "EU" in u or n >= 35:
+            return 39.5 <= n <= 43
+        return 6.5 <= n <= 10          # bare small numbers at US stores are US sizes
+    if SHIRT_WORDS.search(title) and 13 <= n <= 19:
+        return 14.5 <= n <= 16.5       # collar sizes ~ S-L
+    if 44 <= n <= 60:
+        return 46 <= n <= 50           # EU/IT tailoring and knitwear
+    if 34 <= n <= 44 and SUIT_WORDS.search(title):
+        return n in (36, 38, 40)
+    return None
+
+
+def judge_sizes(sizes, title, store_tag=""):
+    verdicts = [(sz, size_fits(sz, title, store_tag)) for sz in sizes]
+    known = [(sz, v) for sz, v in verdicts if v is not None]
+    if not known:
+        return None, []
+    ok = [sz for sz, v in known if v]
+    return bool(ok), ok
+
+
+def title_size_fit(title):
+    """Single-size listings that state the size in the title, e.g. 'EU 58 / US 48'."""
+    m = re.search(r"\bEU\s?(\d{2})\s?/\s?US\s?(\d{2})", title)
+    if m and SUIT_WORDS.search(title):
+        return int(m.group(2)) in (36, 38, 40), [f"US {m.group(2)}"]
+    m = re.search(r"\bsize\s?(\d{1,2}(?:\.5)?)\b", title, re.I)
+    if m and SHOE_WORDS.search(title):
+        n = float(m.group(1))
+        return 6.5 <= n <= 10, [m.group(1)]
+    return None, []
+
+
 def parse_shopify(tag, raw):
     """Public Shopify sale collections: compare_at_price vs price is a real markdown."""
     store, host, cur, fine = SHOPIFY_STORES[tag]
@@ -513,10 +572,17 @@ def parse_shopify(tag, raw):
         vendor = p.get("vendor") or ""
         title = f"{vendor} {p.get('title', '')}".strip() if vendor and vendor.lower() not in p.get("title", "").lower() else p.get("title", "")
         img = (p.get("images") or [{}])[0].get("src")
+        names = [o.get("name", "").lower() for o in p.get("options", [])]
+        si = next((i for i, nm in enumerate(names) if "size" in nm), None)
+        sizes = [v.get(f"option{si + 1}") or "" for v in live] if si is not None else []
+        fit, fit_sizes = judge_sizes(sizes, title, tag) if sizes else (None, [])
+        if fit is None:
+            fit, fit_sizes = title_size_fit(title)
         out.append(base(f"sh{tag}{p['id']}", store, tag, title, f"{host}/products/{p['handle']}",
                         store, price, was, None, None,
                         img, vendor=vendor, apparel=tag not in OUTDOOR_SHOPS, outdoor=tag in OUTDOOR_SHOPS, cur=cur,
-                        fine=not fine or bool(re.search(fine, vendor, re.I))))
+                        fine=not fine or bool(re.search(fine, vendor, re.I)),
+                        fit=fit, sizes=list(dict.fromkeys(fit_sizes))[:6]))
     return out
 
 
@@ -588,6 +654,12 @@ def flags(d):
             f.append("creative-lite")
         if price > 500 and ("creative" in f or "creative-lite" in f):
             f.append("over-budget")
+    if d.get("fit") is None and "fit" not in d:
+        fit, sz = title_size_fit(t)
+        if fit is not None:
+            d["fit"], d["sizes"] = fit, sz
+    if d.get("fit") is False:
+        f.append("nofit")
     if REFURB.search(t):
         f.append("refurb")
     if is_pc and not REFURB.search(t) and not re.search(r"\bused\b|for parts|broken|replacement|motherboard|screen|keyboard|battery|charger|case\b|skin", t, re.I):
@@ -623,7 +695,7 @@ def green_candidate(d):
     """A real 50%+ markdown on a men's item in the shopper's lanes."""
     f = set(d.get("flags") or [])
     return ((d.get("pct") or 0) >= 50 and d.get("was") and (d.get("price") or 0) >= GREEN_MIN_PRICE
-            and not {"roundup", "hide", "womens"} & f and bool({"pc", "tailor", "brand"} & f))
+            and not {"roundup", "hide", "womens", "nofit"} & f and bool({"pc", "tailor", "brand"} & f))
 
 
 def mark_green(deals):
@@ -664,7 +736,7 @@ def golden_candidate(d):
     """Pick-it-up-now tier: a real 90%+ markdown on a men's item worth $100+ at full price,
     in the shopper's lanes; or a reported price error on a computer with a known price."""
     f = set(d.get("flags") or [])
-    if {"roundup", "hide", "womens"} & f or d.get("price") is None:
+    if {"roundup", "hide", "womens", "nofit"} & f or d.get("price") is None:
         return False
     in_lane = bool({"pc", "tailor", "brand"} & f)
     real_90 = (d.get("pct") or 0) >= 90 and (d.get("was") or 0) >= 100
@@ -688,7 +760,7 @@ def is_green(d):
 def _old_is_green(d):
     f = set(d.get("flags") or [])
     return ((d.get("pct") or 0) >= 50 and d.get("was") and d.get("price") is not None
-            and not {"roundup", "hide", "womens"} & f and bool({"pc", "tailor", "brand"} & f))
+            and not {"roundup", "hide", "womens", "nofit"} & f and bool({"pc", "tailor", "brand"} & f))
 
 
 def send_pushes(deals, golden=False):
