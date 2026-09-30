@@ -590,6 +590,11 @@ def flags(d):
             f.append("over-budget")
     if REFURB.search(t):
         f.append("refurb")
+    if is_pc and not REFURB.search(t) and not re.search(r"\bused\b|for parts|broken|replacement|motherboard|screen|keyboard|battery|charger|case\b|skin", t, re.I):
+        floor = spec_floor(t)
+        if floor and price is not None and 0 < price <= 0.4 * floor:
+            d["spec_floor"] = floor
+            f.append("anomaly")
     if re.search(r"\bladies\b|\bwomen'?s\b|\bwomens\b|\bw's\b|\bkids'?\b|\bgirls'?\b|\bboys'?\b", t, re.I):
         f.append("womens")
     if HIDE.search(t) or d.get("cat") == "Toys & Kids":
@@ -637,6 +642,24 @@ def mark_green(deals):
         n += 1
 
 
+# The least a NEW machine with these specs realistically sells for. A listing far below
+# this floor is almost always a price error (or a scam listing, which the card warns about).
+SPEC_FLOORS = [
+    (r"rtx\s?(4090|5090)", 1800), (r"rtx\s?(4080|5080)", 1200), (r"rtx\s?(4070|5070)", 800),
+    (r"rtx\s?(4060|5060|3070|3080)", 600), (r"rtx\s?(4050|5050|3060)", 500),
+    (r"\bm[1-6]\s?(max|ultra)\b", 1500), (r"\bm[1-6]\s?pro\b", 900),
+    (r"macbook pro", 900), (r"macbook air|mac mini|imac", 450),
+    (r"alienware|razer blade|rog (strix|zephyrus)|legion (pro|7|9)|msi (raider|stealth|titan|vector|crosshair|katana|sword|pulse)|omen (16|17|max)|predator helios", 700),
+    (r"gaming (laptop|desktop|pc)", 450), (r"core ultra [79]|ryzen (ai )?9|\bi9\b", 600),
+    (r"(32|64)\s?gb.*(laptop|notebook)|(laptop|notebook).*(32|64)\s?gb", 600),
+]
+
+
+def spec_floor(title):
+    floors = [v for pat, v in SPEC_FLOORS if re.search(pat, title, re.I)]
+    return max(floors) if floors else None
+
+
 def golden_candidate(d):
     """Pick-it-up-now tier: a real 90%+ markdown on a men's item worth $100+ at full price,
     in the shopper's lanes; or a reported price error on a computer with a known price."""
@@ -646,7 +669,8 @@ def golden_candidate(d):
     in_lane = bool({"pc", "tailor", "brand"} & f)
     real_90 = (d.get("pct") or 0) >= 90 and (d.get("was") or 0) >= 100
     pc_error = "pc" in f and "anomaly" in f and bool(ANOMALY_WORDS.search(d["title"])) and d["price"] > 0
-    return in_lane and (real_90 or pc_error)
+    below_spec = bool(d.get("spec_floor")) and 20 <= d["price"] <= 0.25 * d["spec_floor"]
+    return in_lane and (real_90 or pc_error or below_spec)
 
 
 def mark_golden(deals):

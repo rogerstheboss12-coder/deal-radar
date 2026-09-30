@@ -138,6 +138,7 @@ svg.spark{display:block}
 .deal.gold .tile{background:radial-gradient(120% 90% at 50% 20%,#fff6d6,#f3d77a)}
 .deal.gold .tile::before{content:"";position:absolute;inset:0;border-bottom:3px solid var(--gold);pointer-events:none}
 .goldwhy{color:var(--gold-ink)}
+.warn{font:600 11px/1.35 var(--f-body);color:var(--warn)}
 .goldbar{margin-top:18px;border:2px solid var(--gold);border-radius:16px;padding:14px;background:color-mix(in srgb,var(--gold) 12%,var(--surface))}
 .goldbar h2{font:800 22px/1.1 var(--f-display);margin:0 0 12px;color:var(--gold-ink)}
 .goldbar h2 span{font:500 12px var(--f-mono);color:var(--muted)}
@@ -216,7 +217,7 @@ footer{margin-top:36px;font-size:12px;color:var(--muted);max-width:75ch}
   <button class="more" id="more" hidden>Show more</button>
   <button class="toast" id="toast" hidden></button>
 
-  <footer>Gold cards are Golden Finds: a real 90%+ markdown on a men's item worth $100+ at full price in your lanes, or a reported price error on a computer. They always send a notification. Green cards are the 20 absolute best for you: real markdowns of 50% or more on men's items of $40+ (never women's) in PCs, tailoring or outdoor brands, ranked by % off and dollars saved, at most 4 per store. Faded cards have dropped out of the source feeds. Deals come from public feeds (Slickdeals, DealNews, 9to5Toys, MacRumors, Windows Central, Gear Patrol, Put This On, Stitchdown, Dappered, No Man Walks Alone, Skoaktiebolaget, camelcamelcamel and Reddit deal communities) and each links to the original post. Software keys, subscriptions, kids, toys and pet deals are hidden. Retailers often cancel price-mistake orders, so check fast. Watchlist, targets and alerts are saved in this browser only.</footer>
+  <footer>Gold cards are Golden Finds: a real 90%+ markdown on a men's item worth $100+ at full price in your lanes, a reported price error on a computer, or a new computer listed under a quarter of what its specs normally cost. They always send a notification. Green cards are the 20 absolute best for you: real markdowns of 50% or more on men's items of $40+ (never women's) in PCs, tailoring or outdoor brands, ranked by % off and dollars saved, at most 4 per store. Faded cards have dropped out of the source feeds. Deals come from public feeds (Slickdeals, DealNews, 9to5Toys, MacRumors, Windows Central, Gear Patrol, Put This On, Stitchdown, Dappered, No Man Walks Alone, Skoaktiebolaget, camelcamelcamel and Reddit deal communities) and each links to the original post. Software keys, subscriptions, kids, toys and pet deals are hidden. Retailers often cancel price-mistake orders, so check fast. Watchlist, targets and alerts are saved in this browser only.</footer>
 </div>
 
 <script>
@@ -265,6 +266,7 @@ function personal(d,kw){
   const t=d.title.toLowerCase(),alert=kw.some(k=>k.split(/\s+/).every(w=>t.includes(w)));
   if(alert){s+=30;why.push("Matches your alert")}
   if(hitTarget(d)){s+=40;why.push("Hit your target")}
+  if(d.spec_floor&&d.price<=d.spec_floor*0.4)why.unshift(`Specs usually cost $${d.spec_floor.toLocaleString()}+`);
   if(d.golden)why.unshift(has(d,"anomaly")&&(d.pct||0)<90?"Possible price error":"Golden find");
   return{s:s+(d.green?100:0)+(d.golden?500:0),why:[...new Set(why)].slice(0,3),best:!!d.green,gold:!!d.golden};
 }
@@ -322,6 +324,7 @@ function card(d){
       ${p.gold?`<div class="why goldwhy">★ GOLDEN FIND · ${esc(p.why.slice(1).join(" · "))}</div>`:best?`<div class="why">● ${esc(p.why.join(" · "))}</div>`:""}
       <div class="prow"><span class="price${d.price==null?" na":""}">${d.price==null?"See deal":money(d.price,d.cur)}</span>${d.was?`<span class="was">${money(d.was,d.cur)}</span>`:""}${d.pct?`<span class="pct">−${d.pct}%</span>`:""}${spark(d.hist)}</div>
       <a class="t" href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.title)}</a>
+      ${d.golden&&d.spec_floor?`<div class="warn">Check the seller before buying: a real price error, or a third-party scam listing.</div>`:""}
       <div class="meta">
         ${has(d,"pc")?specs(d.title).map(x=>`<span class="spec">${esc(x)}</span>`).join(""):""}
         ${d.brand&&!best?`<span>${esc(d.brand)}</span>`:""}
