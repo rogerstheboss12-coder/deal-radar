@@ -78,6 +78,20 @@ CORE = [
     ("shopify", "techable", "https://techable.com/products.json?limit=250"),
     ("shopify", "refurbio", "https://us.refurb.io/products.json?limit=250"),
     ("shopify", "sysliq", "https://systemliquidation.com/products.json?limit=250"),
+    ("shopify", "italist-bc", "https://italist.com/collections/brunello-cucinelli-men/products.json?limit=250"),
+    ("shopify", "sartale", "https://sartale.com/collections/sale-archive/products.json?limit=250"),
+    ("shopify", "pringle", "https://pringlescotland.com/collections/all-sale-mens/products.json?limit=250"),
+    ("shopify", "jondral", "https://en.michaeljondral.com/products.json?limit=250"),
+    ("shopify", "andover", "https://theandovershop.com/collections/closeout-sale/products.json?limit=250"),
+    ("shopify", "mrderk", "https://mrderk.com/collections/indulge-sale-2026/products.json?limit=250"),
+    ("shopify", "upper", "https://www.upper-shoes.com/collections/outlet-homme/products.json?limit=250"),
+    ("shopify", "newlingwood", "https://newandlingwood.com/collections/clearance/products.json?limit=250"),
+    ("shopify", "boyds", "https://www.boydsphila.com/collections/sale/products.json?limit=250"),
+    ("shopify", "mtnsports", "https://mountainsports.com/collections/sale/products.json?limit=250"),
+    ("shopify", "wildbounds", "https://wildbounds.com/collections/sale/products.json?limit=250"),
+    ("shopify", "bushtukah", "https://bushtukah.com/collections/sale/products.json?limit=250"),
+    ("shopify", "bd-outlet", "https://blackdiamondequipment.com/collections/mens-outlet/products.json?limit=250"),
+    ("shopify", "plug", "https://plug.tech/collections/macbooks/products.json?limit=250"),
     ("dn", "dn-hot", "https://www.dealnews.com/?rss=1&sort=hotness"),
     ("dn", "dn-new", "https://www.dealnews.com/?rss=1"),
     ("dn", "dn-computers", "https://www.dealnews.com/c39/Computers/?rss=1&sort=time"),
@@ -515,12 +529,27 @@ SHOPIFY_STORES.update({
     "techable": ("Techable", "https://techable.com", "USD", None),
     "refurbio": ("refurb.io", "https://us.refurb.io", "USD", None),
     "sysliq": ("System Liquidation", "https://systemliquidation.com", "USD", None),
+    "italist-bc": ("Italist", "https://italist.com", "USD", None),
+    "sartale": ("Sartale", "https://sartale.com", "USD", None),
+    "pringle": ("Pringle of Scotland", "https://pringlescotland.com", "GBP", None),
+    "jondral": ("Michael Jondral", "https://en.michaeljondral.com", "USD", None),
+    "andover": ("The Andover Shop", "https://theandovershop.com", "USD", None),
+    "mrderk": ("Mr. Derk", "https://mrderk.com", "CAD", None),
+    "upper": ("Upper Shoes", "https://www.upper-shoes.com", "EUR", None),
+    "newlingwood": ("New & Lingwood", "https://newandlingwood.com", "GBP", None),
+    "boyds": ("Boyds Philadelphia", "https://www.boydsphila.com", "USD", None),
+    "mtnsports": ("Mountain Sports", "https://mountainsports.com", "USD", None),
+    "wildbounds": ("Wild Bounds", "https://wildbounds.com", "GBP", None),
+    "bushtukah": ("Bushtukah", "https://bushtukah.com", "CAD", None),
+    "bd-outlet": ("Black Diamond", "https://blackdiamondequipment.com", "USD", None),
+    "plug": ("Plug", "https://plug.tech", "USD", None),
 })
-OUTDOOR_SHOPS = {"evo-patagonia", "evo-tnf", "evo-mh", "cotopaxi", "filson", "or", "sb-patagonia", "sb-tnf", "tiso"}
-MULTI_BRAND_OUTDOOR = {"tiso"}                 # only named premium brands count as "brand" here
-REFURB_SHOPS = {"techable", "refurbio", "sysliq"}
+OUTDOOR_SHOPS = {"evo-patagonia", "evo-tnf", "evo-mh", "cotopaxi", "filson", "or", "sb-patagonia", "sb-tnf", "tiso",
+                 "mtnsports", "wildbounds", "bushtukah", "bd-outlet"}
+MULTI_BRAND_OUTDOOR = {"tiso", "mtnsports", "wildbounds", "bushtukah"}                 # only named premium brands count as "brand" here
+REFURB_SHOPS = {"techable", "refurbio", "sysliq", "plug"}
 PAGES = {"herring": 3, "tiedeals": 4, "tiso": 3, "sanpetuna": 2, "sb-patagonia": 2, "sb-tnf": 2,
-         "techable": 2, "sysliq": 2}
+         "techable": 2, "sysliq": 2, "italist-bc": 2, "mtnsports": 3, "wildbounds": 2, "jondral": 3}
 PREOWNED = re.compile(r"pre-?owned|\bused\b|vintage|\bworn\b|second-?hand|consign", re.I)
 
 
@@ -534,6 +563,7 @@ ALPHA_ANY = re.compile(r"^(\d?x{0,4}[sl]|m|xs|xxs|\d?xl|x+l|small|medium|large|s
 
 
 SHOE_SHOPS = {"herring", "osweeney"}
+US_SIZED = {"andover", "mrderk", "boyds"}   # North American shops: suit sizes are US chest
 WAIST_OK = (27, 29)          # inches
 INSEAM_OK = (27.5, 29)       # inches; shorts ignore inseam
 EU_WAIST_OK = (42, 44)       # Italian/EU trouser sizes (44 = 28-29")
@@ -596,6 +626,9 @@ def size_fits(size, title, store_tag=""):
         return 6.5 <= n <= 10          # bare small numbers at US stores are US sizes
     if SHIRT_WORDS.search(title) and 13 <= n <= 19:
         return 14.5 <= n <= 16.5       # collar sizes ~ S-L
+    if store_tag in US_SIZED or re.search(r"\d{2}\s?[RSL]\b", raw):
+        if 34 <= n <= 54 and (SUIT_WORDS.search(title) or re.search(r"\d{2}\s?[RSL]\b", raw)):
+            return n in (36, 38, 40)   # US chest sizes: 36R/38R/40R
     if 44 <= n <= 60:
         return 46 <= n <= 50           # EU/IT tailoring and knitwear
     if 34 <= n <= 44 and SUIT_WORDS.search(title):
@@ -763,6 +796,12 @@ def flags(d):
 
 
 GREEN_MAX, GREEN_PER_SOURCE, GREEN_MIN_PRICE = 20, 4, 40
+GREEN_PER_LANE = {"tailor": 10, "brand": 6, "pc": 6}   # keep every lane represented
+
+
+def lane_of(d):
+    f = set(d.get("flags") or [])
+    return "tailor" if "tailor" in f else "pc" if "pc" in f else "brand"
 
 
 def green_candidate(d):
@@ -782,11 +821,15 @@ def mark_green(deals):
     per, n = {}, 0
     for d in deals:
         d.pop("green", None)
+    lanes = {}
     for d in ranked:
-        if n >= GREEN_MAX or per.get(d["src"], 0) >= GREEN_PER_SOURCE:
+        lane = lane_of(d)
+        if (n >= GREEN_MAX or per.get(d["src"], 0) >= GREEN_PER_SOURCE
+                or lanes.get(lane, 0) >= GREEN_PER_LANE[lane]):
             continue
         d["green"] = True
         per[d["src"]] = per.get(d["src"], 0) + 1
+        lanes[lane] = lanes.get(lane, 0) + 1
         n += 1
 
 

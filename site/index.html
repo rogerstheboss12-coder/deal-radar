@@ -218,7 +218,7 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stro
 const $=s=>document.querySelector(s);
 const has=(d,f)=>!!d.flags&&d.flags.indexOf(f)>-1;
 const ls={get(k,v){try{const x=localStorage.getItem(k);return x?JSON.parse(x):v}catch(e){return v}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-const SYM={USD:"$",EUR:"€",GBP:"£"};
+const SYM={USD:"$",EUR:"€",GBP:"£",CAD:"C$"};
 const sym=d=>SYM[d.cur]||"$";
 const money=(n,c)=>n==null?"":n===0?"FREE":(SYM[c]||"$")+(n>=100?Math.round(n).toLocaleString():n.toFixed(2).replace(/\.00$/,""));
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
