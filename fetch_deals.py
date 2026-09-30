@@ -533,11 +533,49 @@ ALPHA_OK = re.compile(r"^(s|m|l|small|medium|large|sm|md|lg)$", re.I)
 ALPHA_ANY = re.compile(r"^(\d?x{0,4}[sl]|m|xs|xxs|\d?xl|x+l|small|medium|large|sm|md|lg|one size|os)$", re.I)
 
 
+SHOE_SHOPS = {"herring", "osweeney"}
+WAIST_OK = (27, 29)          # inches
+INSEAM_OK = (27.5, 29)       # inches; shorts ignore inseam
+EU_WAIST_OK = (42, 44)       # Italian/EU trouser sizes (44 = 28-29")
+
+
+def pants_fit(raw, title):
+    """Pants and shorts: waist 27-29 and inseam 27.5-29 when stated."""
+    shorts = bool(re.search(r"\bshorts?\b", title, re.I))
+    if re.search(r"\btall\b", title, re.I) and not shorts:
+        return False
+    u = raw.strip()
+    if re.fullmatch(r"(?i)xs|s|small|x-small|xsmall", u):
+        return True
+    if ALPHA_ANY.match(u):
+        return False
+    m = re.search(r"(?i)W?\s?(\d{2})\s*(?:[xX/]|\s+L)\s*L?\s?(\d{2}(?:\.5)?)", u)
+    if m:
+        waist, inseam = int(m.group(1)), float(m.group(2))
+        in_waist = WAIST_OK[0] <= waist <= WAIST_OK[1] or EU_WAIST_OK[0] <= waist <= EU_WAIST_OK[1]
+        return in_waist and (shorts or INSEAM_OK[0] <= inseam <= INSEAM_OK[1] + 0.99)
+    m = re.search(r"(\d{2})", u)
+    if not m:
+        return None
+    n = int(m.group(1))
+    if 40 <= n <= 60:
+        ok = EU_WAIST_OK[0] <= n <= EU_WAIST_OK[1]
+    elif 24 <= n <= 44:
+        ok = WAIST_OK[0] <= n <= WAIST_OK[1]
+    else:
+        return None
+    if ok and not shorts and re.search(r"(?i)\b(regular|long|reg|tall|\bl\b)\b", u):
+        return False
+    return ok
+
+
 def size_fits(size, title, store_tag=""):
     """True/False when this size label can be judged for the shopper, None when unclear."""
     raw = size.strip()
     if not raw or raw.lower() in ("default title", "one size", "os", "o/s"):
         return None
+    if PANT_WORDS.search(title) and not SUIT_WORDS.search(title):
+        return pants_fit(raw, title)
     if ALPHA_ANY.match(raw):
         return bool(ALPHA_OK.match(raw))
     m = re.search(r"(\d{1,2}(?:\.5)?)", raw)
@@ -546,8 +584,11 @@ def size_fits(size, title, store_tag=""):
     n = float(m.group(1))
     u = raw.upper()
     if PANT_WORDS.search(title) and not SUIT_WORDS.search(title):
-        return True
-    if SHOE_WORDS.search(title) or store_tag == "herring":
+        return pants_fit(raw, title)
+    us = re.search(r"\bUS[-\s]?(\d{1,2}(?:\.5)?)\b", u)
+    if us and (SHOE_WORDS.search(title) or store_tag in SHOE_SHOPS):   # "UK-8 ** US-9 ** EU-42"
+        return 6.5 <= float(us.group(1)) <= 10
+    if SHOE_WORDS.search(title) or store_tag in SHOE_SHOPS:
         if "UK" in u or (store_tag == "herring" and n < 20):   # Herring lists UK sizes
             return 6 <= n <= 9.5
         if "EU" in u or n >= 35:
