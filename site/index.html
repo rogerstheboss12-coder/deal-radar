@@ -56,7 +56,15 @@ h1 small{display:block;font:500 12px var(--f-mono);letter-spacing:.04em;color:va
 .filters{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:8px}
 .filters input,.filters select{font:14px var(--f-body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-width:0}
 .filters #maxp{width:100px}
-@media (max-width:640px){.filters{grid-template-columns:1fr 1fr}.filters #q{grid-column:1/-1}.filters #maxp{width:auto}}
+@media (max-width:640px){.filters{grid-template-columns:1fr 1fr}.filters #q{grid-column:1/-1}.filters #maxp{width:auto}
+  .bar{position:static}.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);padding-block:8px;margin-block:-8px}
+  .readout{gap:12px}.readout b{font-size:16px}h1{font-size:28px}}
+details.more-filters>summary{cursor:pointer;font:600 13px var(--f-body);color:var(--muted);list-style:none}
+details.more-filters>summary::-webkit-details-marker{display:none}
+details.more-filters>summary::before{content:"▸ ";}
+details.more-filters[open]>summary::before{content:"▾ ";}
+details.more-filters>div{display:grid;gap:10px;margin-top:10px}
+@media (min-width:641px){details.more-filters>summary{display:none}}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chips button{border:0;background:var(--chip);color:var(--ink);font:600 12px var(--f-body);padding:5px 10px;border-radius:7px;cursor:pointer}
 .chips button .n{font:500 11px var(--f-mono);color:var(--muted);margin-left:3px}
@@ -88,7 +96,7 @@ h1 small{display:block;font:500 12px var(--f-mono);letter-spacing:.04em;color:va
 .flags{position:absolute;left:8px;bottom:8px;display:flex;gap:4px;flex-wrap:wrap}
 .flags span{font:700 10px var(--f-mono);padding:3px 6px;border-radius:5px;background:#0f1d17;color:#fafbf8;letter-spacing:.03em}
 .flags .a{background:#e4572e}.flags .c{background:#f2c230;color:#1b1a12}
-.star{position:absolute;right:6px;top:4px;z-index:2;border:0;background:none;color:#5e6b64;font-size:23px;line-height:1;cursor:pointer;padding:4px}
+.star{position:absolute;right:2px;top:0;z-index:2;border:0;background:none;color:#5e6b64;font-size:23px;line-height:1;cursor:pointer;min-width:44px;min-height:44px;display:grid;place-items:center}
 .star[aria-pressed="true"]{color:#e4572e}
 .body{display:flex;flex-direction:column;gap:6px;padding:11px 12px 12px;flex:1;min-width:0}
 .why{font:700 11px/1.3 var(--f-mono);color:var(--best-ink);letter-spacing:.02em}
@@ -113,6 +121,8 @@ svg.spark{display:block}
 .deal.best .tile{background:radial-gradient(120% 90% at 50% 20%,color-mix(in srgb,var(--best-tile) 70%,#fff),var(--best-tile))}
 .deal.best .tile::before{content:"";position:absolute;inset:0;border-bottom:3px solid var(--best);pointer-events:none}
 .deal.hit{border-color:#f2c230;box-shadow:0 0 0 2px #f2c230}
+.deal.stale{opacity:.6}
+.deal.stale .meta::after{content:"no longer in feeds";color:var(--warn)}
 
 .empty{grid-column:1/-1;padding:44px 12px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}
 .empty h3{font:800 22px var(--f-display);color:var(--ink);margin:0 0 6px}
@@ -157,12 +167,14 @@ footer{margin-top:36px;font-size:12px;color:var(--muted);max-width:75ch}
         <option value="power">Most powerful (video)</option>
       </select>
     </div>
+    <details class="more-filters" id="morefilters"><summary>Stores, brands &amp; alerts</summary><div>
     <div class="chips" id="chips" aria-label="Filter by store or brand"></div>
     <div class="alertrow">
       <label for="alerts">Alert keywords</label>
       <input id="alerts" placeholder="kiton, isaia, macbook pro m4, arcteryx beta">
       <button class="ghost" id="notify" type="button" hidden>Turn on notifications</button>
     </div>
+    </div></details>
   </div>
 
   <p class="help" id="help"></p>
@@ -175,18 +187,18 @@ footer{margin-top:36px;font-size:12px;color:var(--muted);max-width:75ch}
   <button class="more" id="more" hidden>Show more</button>
   <button class="toast" id="toast" hidden></button>
 
-  <footer>Green cards are the best deals for you: price errors on PCs, tailoring and outdoor brands; video-capable machines ≤$500; deep discounts; hot community picks; and anything matching your alerts or target prices. Deals come from public feeds (Slickdeals, DealNews, 9to5Toys, MacRumors, Dappered, camelcamelcamel and Reddit deal communities) and each links to the original post. Software keys, subscriptions, kids, toys and pet deals are hidden. Retailers often cancel price-mistake orders, so check fast. Watchlist, targets and alerts are saved in this browser only.</footer>
+  <footer>Green cards are the absolute best for you: a real markdown of 50% or more (known original price, a single item rather than a sale roundup) on PCs, tailoring or outdoor brands, a price error, or an alert match. Faded cards have dropped out of the source feeds. Deals come from public feeds (Slickdeals, DealNews, 9to5Toys, MacRumors, Windows Central, Gear Patrol, Put This On, Stitchdown, Dappered, No Man Walks Alone, Skoaktiebolaget, camelcamelcamel and Reddit deal communities) and each links to the original post. Software keys, subscriptions, kids, toys and pet deals are hidden. Retailers often cancel price-mistake orders, so check fast. Watchlist, targets and alerts are saved in this browser only.</footer>
 </div>
 
 <script>
 const STORE_COLORS={"Home Depot":"#e2641b","Lowe's":"#1a4f9c","Walmart":"#0a6fd6","Target":"#cc1f2d","Best Buy":"#0b3a8a","Amazon":"#232f3e","Costco":"#c4202f","Kohl's":"#6b1d3a","Dick's":"#146b4e","Micro Center":"#b3121f","Newegg":"#e05a00","B&H":"#1f1f1f","Apple":"#1d1d1f","Woot":"#5e7d1a","Nordstrom Rack":"#1c3f94","REI":"#3a5f2a"};
 const TABS=[["picks","My Picks"],["anomaly","Price anomalies"],["p95","95%+ off & free"],["creative","Creative PCs ≤$500"],["power","Power PCs"],["tailor","Tailoring"],["brand","Outdoor brands"],["major","Major deals"],["clr","Clearance"],["today","New today"],["all","All"],["alerts","Alerts"],["watch","Watchlist"]];
-const TAB_HELP={picks:"Your categories only: PC price errors, video-capable machines ≤$500, tailoring, discounted power PCs and premium outdoor brands. Green cards are the strongest.",
+const TAB_HELP={picks:"Your lanes only: PC price errors, video-capable machines ≤$500, tailoring, discounted power PCs, outdoor brands. Green = a real 50%+ markdown in your lanes.",
   anomaly:"Reported price mistakes, 70%+ off, and prices that fell 30%+ since first seen.",
   p95:"Real 95%+ discounts and genuinely free items. Rare; this fills the moment one is posted.",
   creative:"Machines ≤$500 that can edit video: Apple silicon, or Ryzen 7/9 or Core i7/i9 with 16GB+. Refurb and open-box included.",
   power:"High-compute laptops and desktops, ranked for video work: Apple Max/Pro chips and RAM first, then GPU.",
-  tailor:"Kiton, Isaia, Attolini, Borrelli, Sartorio, Edward Green, Crockett & Jones, Alden, Drake's, Charvet, plus tailoring at Saks Off 5th, Nordstrom Rack, Last Call, Gilt, YOOX, Mr Porter, SSENSE and END. No eBay.",
+  tailor:"Tailored pieces and fine shoes first, then other menswear markdowns from No Man Walks Alone and Skoaktiebolaget. Watching Kiton, Isaia, Attolini, Borrelli, Sartorio, Edward Green, Crockett & Jones, Alden, Drake's, Charvet, plus tailoring at Saks Off 5th, Nordstrom Rack, Last Call, Gilt, YOOX, Mr Porter, SSENSE and END. No eBay.",
   brand:"Patagonia, Arc'teryx, The North Face, Fjällräven, Canada Goose and similar brands."};
 const $=s=>document.querySelector(s);
 const has=(d,f)=>(d.flags||[]).includes(f);
@@ -201,31 +213,33 @@ const isAlert=d=>{const t=d.title.toLowerCase();return keywords().some(k=>k.spli
 const dropped=d=>{const h=d.hist||[];return h.length>1&&h[h.length-1][1]<h[h.length-2][1]};
 const isToday=d=>Date.now()-Date.parse(d.seen)<864e5;
 const hitTarget=d=>{const w=watch[d.id];return !!(w&&w.target!=null&&d.price!=null&&d.price<=w.target)};
-const isPick=d=>has(d,"creative")||has(d,"tailor")||has(d,"brand")||(has(d,"pc")&&has(d,"anomaly"))||(has(d,"power")&&(d.pct??0)>=30);
+const isPick=d=>has(d,"menswear")&&(d.pct||0)>=50||has(d,"creative")||has(d,"tailor")||has(d,"brand")||(has(d,"pc")&&has(d,"anomaly"))||(has(d,"power")&&(d.pct??0)>=30);
 const isMajor=d=>(d.pct??0)>=50||(d.score??0)>=25||d.pick||dropped(d)||has(d,"anomaly");
 
-// How good a deal is for this shopper, and why.
-function personal(d){
-  if(has(d,"hide"))return{s:0,why:[]};
-  let s=0;const why=[];
-  const mine=has(d,"pc")||has(d,"tailor")||has(d,"brand");
-  if(has(d,"anomaly")){s+=mine?60:25;why.push(mine?"Possible price error":"Unusual price")}
-  if(has(d,"creative")){s+=50;why.push("Edits video under $500")}
-  if(has(d,"tailor")){s+=55;why.push(d.brand||"Tailoring")}
-  if(has(d,"brand")){s+=25;why.push(d.brand)}
+// How good a deal is for this shopper, and why. Green = a real 50%+ markdown
+// (known original price, single item, not a sale roundup) in the shopper's lanes.
+const mineOf=d=>has(d,"pc")||has(d,"tailor")||has(d,"brand");
+function personal(d,kw){
+  if(has(d,"hide"))return{s:0,why:[],best:false};
+  let s=0;const why=[],mine=mineOf(d),pct=d.pct||0;
+  const real=pct>=50&&d.was!=null&&d.price!=null&&!has(d,"roundup");
+  if(real){s+=40+Math.min(pct,95)/2;why.push(pct+"% off")}
+  if(has(d,"anomaly")){s+=mine?40:15;why.push(mine?"Possible price error":"Unusual price")}
+  if(has(d,"creative")){s+=35;why.push("Edits video under $500")}
+  if(has(d,"tailor")){s+=30;why.push(d.brand||"Tailoring")}
+  if(has(d,"brand")){s+=20;why.push(d.brand)}
   if(has(d,"power")){s+=10;why.push("High-compute")}
-  const pct=d.pct||0;if(pct>=20){s+=Math.min(pct,90)/2;why.push(pct+"% off")}
-  if((d.score||0)>=10){s+=Math.min(d.score,75)/3;why.push("Community hot")}
-  if(d.pick){s+=10;why.push("Staff pick")}
-  if(dropped(d)){s+=15;why.push("Price just dropped")}
+  if((d.score||0)>=10){s+=Math.min(d.score,75)/4;why.push("Community hot")}
+  if(dropped(d)){s+=10;why.push("Price just dropped")}
   if(has(d,"roundup")||d.price==null)s*=0.4;
   if(!mine)s*=0.5;
-  if(isAlert(d)){s+=50;why.push("Matches your alert")}
-  if(hitTarget(d)){s+=70;why.push("Hit your target")}
-  return{s,why:[...new Set(why)].slice(0,3)};
+  const t=d.title.toLowerCase(),alert=kw.some(k=>k.split(/\s+/).every(w=>t.includes(w)));
+  if(alert){s+=30;why.push("Matches your alert")}
+  if(hitTarget(d)){s+=40;why.push("Hit your target")}
+  return{s,why:[...new Set(why)].slice(0,3),best:real&&(mine||alert||has(d,"anomaly"))};
 }
-const BEST=50;
-const isBest=d=>personal(d).s>=BEST;
+const scoreAll=()=>{const kw=keywords();deals.forEach(d=>{d._p=personal(d,kw)})};
+const isBest=d=>!!d._p?.best;
 
 function specs(t){
   const out=[],gpu=t.match(/RTX\s?(\d{4})(\s?Ti)?/i),m=t.match(/\bM([1-6])\s?(Pro|Max|Ultra)?\b/),cpu=t.match(/Ryzen\s?(AI\s)?\d{1,3}|Core\s?Ultra\s?\d|\bi[579]\b/i),ram=t.match(/\b(8|16|24|32|36|48|64|96|128)\s?GB\b/i);
@@ -244,7 +258,7 @@ const money=n=>n==null?"":n===0?"FREE":"$"+(n>=100?Math.round(n).toLocaleString(
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 function inTab(d,t){
-  return t==="all"||(t==="picks"&&isPick(d))||(t==="major"&&isMajor(d))||(["anomaly","p95","power","brand","creative","tailor"].includes(t)&&has(d,t))||
+  return t==="all"||(t==="picks"&&isPick(d))||(t==="major"&&isMajor(d))||(["anomaly","p95","power","brand","creative"].includes(t)&&has(d,t))||(t==="tailor"&&(has(d,"tailor")||has(d,"menswear")))||
     (t==="clr"&&d.clr)||(t==="today"&&isToday(d))||(t==="alerts"&&isAlert(d))||(t==="watch"&&!!watch[d.id]);
 }
 const chipKey=t=>(t==="brand"||t==="tailor")?"brand":"store";
@@ -255,7 +269,7 @@ function filtered(t=tab,useFilters=true){
 }
 function sorted(r){
   const s=$("#sort").value,time=d=>Date.parse(d.posted||d.seen)||0;
-  const k={me:d=>-personal(d).s,new:d=>-time(d),hot:d=>-(d.score??-99),pct:d=>-(d.pct??-1),low:d=>d.price??1e9,power:d=>-power(d.title)}[s];
+  const k={me:d=>-(d._p?.s||0),new:d=>-time(d),hot:d=>-(d.score??-99),pct:d=>-(d.pct??-1),low:d=>d.price??1e9,power:d=>-power(d.title)}[s];
   return r.sort((a,b)=>(k(a)-k(b))||time(b)-time(a));
 }
 function spark(h){
@@ -265,9 +279,9 @@ function spark(h){
   return `<svg class="spark" width="${w+4}" height="${ht}" viewBox="-2 0 ${w+4} ${ht}" aria-label="Price history"><polyline points="${pts}" fill="none" stroke="var(--muted)" stroke-width="1.4"/><circle cx="${last[0]}" cy="${last[1]}" r="2.4" fill="var(--best)"/></svg>`;
 }
 function card(d){
-  const p=personal(d),best=p.s>=BEST,w=watch[d.id],hit=hitTarget(d);
+  const p=d._p||{s:0,why:[],best:false},best=p.best,w=watch[d.id],hit=hitTarget(d),stale=meta&&d.last&&d.last<meta.updatedAt;
   const fl=[has(d,"anomaly")&&'<span class="a">ANOMALY</span>',has(d,"free")&&'<span>FREE</span>',d.clr&&'<span class="c">CLEARANCE</span>',has(d,"refurb")&&'<span>REFURB</span>'].filter(Boolean).join("");
-  return `<article class="deal${best?" best":""}${hit?" hit":""}${freshIds.has(d.id)?" fresh":""}">
+  return `<article class="deal${best?" best":""}${hit?" hit":""}${freshIds.has(d.id)?" fresh":""}${stale?" stale":""}">
     <div class="tile${d.img?"":" noimg"}" data-store="${esc(d.store)}">${d.img?`<img src="${esc(d.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()">`:""}
       <div class="store" style="background:${STORE_COLORS[d.store]||"#3c4a43"}">${esc(d.store)}</div>
       ${fl?`<div class="flags">${fl}</div>`:""}
@@ -297,7 +311,7 @@ function renderChips(){
   $("#cat").innerHTML='<option value="">All categories</option>'+cats.map(x=>`<option${x===cur?" selected":""}>${esc(x)}</option>`).join("");
 }
 function render(){
-  renderTabs();$("#help").textContent=TAB_HELP[tab]||"";
+  scoreAll();renderTabs();$("#help").textContent=TAB_HELP[tab]||"";
   const list=$("#list"),spot=$("#spot");
   if(!deals.length){
     spot.hidden=true;$("#gridhead").hidden=true;$("#more").hidden=true;
@@ -342,6 +356,7 @@ document.addEventListener("change",e=>{
 let tmr;["#q","#maxp","#alerts"].forEach(s=>$(s).addEventListener("input",()=>{clearTimeout(tmr);tmr=setTimeout(()=>{ls.set("dr.alerts",$("#alerts").value);limit=60;render()},200)}));
 ["#cat","#sort"].forEach(s=>$(s).addEventListener("change",()=>{limit=60;render()}));
 $("#more").addEventListener("click",()=>{limit+=60;render()});
+if(matchMedia("(min-width:641px)").matches)$("#morefilters").open=true;
 setInterval(renderStatus,1000);
 render();
 
@@ -360,7 +375,8 @@ async function load(){
     notifyMatches(added,next);added.forEach(d=>freshIds.add(d.id));
     if(added.length&&window.scrollY>300){pending=next;const b=added.filter(isBest).length,t=$("#toast");
       t.textContent=`${added.length} new deal${added.length>1?"s":""}${b?` · ${b} green`:""} ↑`;t.hidden=false;return}
-    deals=next;renderChips();render();
+    if(document.activeElement?.matches?.("[data-target],#q,#maxp,#alerts")&&document.activeElement.dataset.target){pending=next;return}
+    deals=next;renderChips();render();setTimeout(()=>{added.forEach(d=>freshIds.delete(d.id))},10*60*1000);
   }catch(e){if(!deals.length){meta=false;render()}$("#sub").textContent="Can't reach the deal feed. Retrying…"}
 }
 $("#toast").addEventListener("click",()=>{if(pending){deals=pending;pending=null}$("#toast").hidden=true;renderChips();render();window.scrollTo({top:0,behavior:"smooth"})});
@@ -372,7 +388,7 @@ function notifyMatches(added,all){
   const hits=[...added.filter(d=>isAlert(d)||isBest(d)),...all.filter(hitTarget)];
   hits.slice(0,5).forEach(d=>{
     const key=(hitTarget(d)?"t":"a")+d.id;if(notified.has(key))return;notified.add(key);
-    const n=new Notification(`${money(d.price)||"Deal"} · ${d.store}`,{body:personal(d).why.join(" · ")+"\n"+d.title,icon:d.img||undefined,tag:d.id});
+    const n=new Notification(`${money(d.price)||"Deal"} · ${d.store}`,{body:(d._p?.why||[]).join(" · ")+"\n"+d.title,icon:d.img||undefined,tag:d.id});
     n.onclick=()=>{window.open(d.url,"_blank");n.close()};
   });
   ls.set("dr.notified",[...notified].slice(-500));

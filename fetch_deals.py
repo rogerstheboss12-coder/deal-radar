@@ -40,6 +40,17 @@ CORE = [
     ("blog", "9to5toys", "https://9to5toys.com/feed/"),
     ("blog", "macrumors", "https://feeds.macrumors.com/MacRumors-Deals"),
     ("blog", "dappered", "https://dappered.com/feed/"),
+    ("blog", "windowscentral", "https://www.windowscentral.com/feeds/tag/deals"),
+    ("blog", "putthison", "https://putthison.com/feed/"),
+    ("blog", "gearpatrol", "https://www.gearpatrol.com/feed/"),
+    ("blog", "stitchdown", "https://www.stitchdown.com/feed"),
+    # Open-box stock sells out within hours, so these searches run every time.
+    ("sd", "q:open box", SD + "q=open+box"),
+    ("sd", "q:open box laptop", SD + "q=open+box+laptop"),
+    ("dn", "dn-clearance", "https://www.dealnews.com/f1906/Clearance/?rss=1"),
+    ("dn", "dn-staffpicks", "https://www.dealnews.com/f1682/Staff-Pick/?rss=1"),
+    ("shopify", "nmwa", "https://www.nomanwalksalone.com/collections/sale/products.json?limit=250"),
+    ("shopify", "skoa", "https://www.skoaktiebolaget.com/collections/sale/products.json?limit=250"),
     ("dn", "dn-hot", "https://www.dealnews.com/?rss=1&sort=hotness"),
     ("dn", "dn-new", "https://www.dealnews.com/?rss=1"),
     ("dn", "dn-computers", "https://www.dealnews.com/c39/Computers/?rss=1&sort=time"),
@@ -47,7 +58,8 @@ CORE = [
     ("camel", "camel", "https://camelcamelcamel.com/top_drops/feed"),
     # One combined request: Reddit rate-limits quickly, and polling every few
     # minutes still catches every new post.
-    ("reddit", "reddit", "https://www.reddit.com/r/buildapcsales+LaptopDeals+frugalmalefashion+FrugalFemaleFashion+deals/new/.rss?limit=100"),
+    ("reddit", "reddit", "https://www.reddit.com/r/buildapcsales+LaptopDeals+deals+DealsReddit/new/.rss?limit=100"),
+    ("reddit", "reddit-fashion", "https://www.reddit.com/r/frugalmalefashion+FrugalFemaleFashion/new/.rss?limit=50"),
 ]
 # Slickdeals searches, split into three groups; each run fetches one group,
 # so every search refreshes about every 15 minutes without hammering the site.
@@ -59,11 +71,12 @@ SEARCHES = [
     "black diamond", "cotopaxi", "filson", "yeti", "salomon", "hoka",
     # Creative machines on a budget
     "macbook air", "open box macbook", "refurbished macbook", "mac mini", "mini pc", "imac",
+    "780m", "m1 pro", "refurbished laptop", "dell outlet", "lenovo outlet", "micro center",
     # Tailoring, shoes and accessories
     "kiton", "isaia", "cesare attolini", "luigi borrelli", "sartorio", "edward green",
     "crockett jones", "alden shoes", "drakes", "charvet",
     # Off-price and luxury retailer sales
-    "saks off 5th", "nordstrom rack", "neiman marcus last call", "gilt", "yoox",
+    "nordstrom rack", "neiman marcus last call", "gilt", "yoox",
     "mr porter sale", "ssense sale", "end clothing",
 ]
 
@@ -78,7 +91,7 @@ CATEGORIES = [
     ("Outdoors & Auto", r"tent|camping|kayak|bike|bicycle|tire|\bcar\b|auto|motor oil|cooler|yeti|stanley|flashlight"),
 ]
 
-LAPTOP = re.compile(r"laptop|notebook|macbook|zephyrus|legion|alienware|razer blade|omen|predator|rog strix|tuf gaming|xps|zenbook|thinkpad|precision|zbook", re.I)
+LAPTOP = re.compile(r"laptop|notebook|macbook|zephyrus|legion|alienware|razer blade|\bomen\b|predator|rog strix|tuf gaming|xps|zenbook|thinkpad|precision|zbook", re.I)
 HIGH_COMPUTE = re.compile(r"rtx\s?(40[6-9]0|50[6-9]0)|m[345]\s?(pro|max)|ryzen\s?(9|ai)|core\s?(i9|ultra\s?9)|\bi9\b|(32|64|96|128)\s?gb|workstation|quadro|rtx\s?a\d000|4090|5090|5080|4080", re.I)
 BRANDS = [
     ("Patagonia", r"patagonia"), ("Arc'teryx", r"arc'?teryx"), ("The North Face", r"north face"),
@@ -87,8 +100,8 @@ BRANDS = [
     ("Cotopaxi", r"cotopaxi"), ("Filson", r"filson"), ("Barbour", r"barbour"), ("Rab", r"\brab\b"),
     ("Mountain Hardwear", r"mountain hardwear"), ("Smartwool", r"smartwool"), ("Icebreaker", r"icebreaker"),
     ("Kuhl", r"\bk[uü]hl\b"), ("Salomon", r"salomon"), ("Hoka", r"\bhoka\b"), ("On", r"\bon (running|cloud)"),
-    ("Yeti", r"\byeti\b"), ("Stanley", r"\bstanley\b"), ("Osprey", r"\bosprey\b"), ("Marmot", r"marmot"),
-    ("Columbia", r"columbia sportswear|\bcolumbia\b"), ("Merrell", r"merrell"), ("Vuori", r"vuori"),
+    ("Yeti", r"(?<!logitech )(?<!logitech g )\byeti\b(?! (mic|microphone|x|nano|gx))"), ("Stanley", r"\bstanley\b"), ("Osprey", r"\bosprey\b"), ("Marmot", r"marmot"),
+    ("Columbia", r"columbia sportswear|columbia (men|women)'?s"), ("Merrell", r"merrell"), ("Vuori", r"vuori"),
     ("Lululemon", r"lululemon"), ("Carhartt", r"carhartt"),
 ]
 FREE_ITEM = re.compile(r"^\s*(\[[^\]]*\]\s*)?free\b(?! shipping)|\bfree after (rebate|credit|cashback)|\$0(\.00)?\b|100\s?% off", re.I)
@@ -101,14 +114,20 @@ TAILORING = [
 ]
 LUX_STORES = re.compile(r"saks|off 5th|nordstrom|neiman|last call|gilt|yoox|mr ?porter|ssense|end\.? clothing|matches", re.I)
 CREATIVE = re.compile(r"macbook|mac mini|imac|mac studio", re.I)
-DESKTOP = re.compile(r"mac mini|mac studio|imac|mini pc|desktop|gaming pc|tower\b", re.I)
+DESKTOP = re.compile(r"mac mini|mac studio|imac|mini pc|\bnuc\b|beelink|minisforum|acemagic|acemagician|gmktec|bosgame|kamrui|desktop|gaming pc|tower\b", re.I)
 MENS_FORMAL = re.compile(r"\bsuits?\b|blazer|sport ?coat|dress shirt|\bties?\b|oxford shoe|loafer|brogue|cashmere|tailor|menswear|luxury", re.I)
+TAILORED_PIECE = re.compile(r"blazer|sport ?coat|suit\b|jacket|overcoat|\bcoat\b|trouser|pleated|\bties?\b|cashmere|loafer|oxford|derby|brogue|\bboots?\b|chelsea|monk strap|overshirt", re.I)
 ACCESSORY = re.compile(r"\bhub\b|dock|\bcase\b|charger|sleeve|\bstand\b|adapter|cable|keyboard|mouse|screen protector|backpack|bag\b|skin\b|cooling pad", re.I)
 # Enough CPU/RAM for real video editing: Apple silicon, or a fast x86 chip with 16GB+.
-CREATIVE_SPEC = re.compile(r"\bm[1-6]\b(?! ?\.2)|apple silicon|(ryzen\s?[79]|ryzen ai|core\s?(ultra\s?)?[79]|\bi[79]\b).*\b(16|24|32|48|64)\s?gb|\b(16|24|32|48|64)\s?gb\b.*(ryzen\s?[79]|ryzen ai|core\s?(ultra\s?)?[79]|\bi[79]\b)", re.I)
+# Video-capable: Apple silicon Pro/Max or 16GB+, or a modern x86 chip/GPU with 16GB+.
+APPLE_OK = re.compile(r"\bm[1-6]\s?(pro|max|ultra)\b|\bm[1-6]\b(?! ?\.2).*\b(16|24|32)\s?gb", re.I)
+APPLE_LITE = re.compile(r"\bm[1-6]\b(?! ?\.2)", re.I)
+X86_OK = re.compile(r"ryzen\s?[79]\s?[5-9]\d{3}|ryzen\s?[79]\s?(2[05]\d|3[05]\d)|ryzen ai|core ultra\s?[579]|i[79]-1[2-4]\d{3}|780m|880m|890m|8060s|arc\s?(140|a\d)|rtx\s?\d{4}", re.I)
+RAM16 = re.compile(r"\b(16|24|32|48|64)\s?gb\b(?!\s?(ssd|storage|emmc))", re.I)
+WEAK_PC = re.compile(r"chromebook|celeron|pentium|\bn1[05]0\b|\bn9[57]\b|\bi3\b|ryzen\s?3|monitor", re.I)
 REFURB = re.compile(r"refurb|renewed|open[- ]box|pre-owned|certified", re.I)
-HIDE = re.compile(r"windows 1[01]|office (pro|home|20\d\d)|microsoft 365|license|product key|lifetime (license|subscription|access)|subscription|paramount\+|netflix|hulu|disney\+|peacock|max streaming|vpn|free trial|streaming|\bpet\b|\bdog\b|\bcat\b|puppy|kitten|litter", re.I)
-ROUNDUP = re.compile(r"\bup to\b|\bsale\b|\bsitewide\b|\bextra \d+|\bgift card|\bcredit\b|\bevent\b|\bsavings\b|select (styles|items)|\bdeals? (on|at)\b|\bdeals from\b", re.I)
+HIDE = re.compile(r"windows 1[01] (pro |home )?(key|license|oem|activation)|office (pro|home|20\d\d)|microsoft 365|license|product key|lifetime (license|subscription|access)|subscription|paramount\+|netflix|hulu|disney\+|peacock|max streaming|vpn|free trial|streaming|\bpet\b|\bdog\b|\bcat\b|puppy|kitten|litter", re.I)
+ROUNDUP = re.compile(r"\bup to \$?\d+%?\s*off\b|\bsale\b(?!.*\$\d)|\bsitewide\b|\bextra \d+|\bgift card|\bcredit\b|\bevent\b|\bsavings\b|select (styles|items)|\bdeals? (on|at)\b|\bdeals from\b|\bfrom \$\d", re.I)
 ANOMALY_WORDS = re.compile(r"price (mistake|error|glitch)|pricing (error|mistake)|\bmispriced\b|\bpenny (deal|item|list|find)s?\b|\$0?\.01\b|\bPM\b.*\bYMMV\b", re.I)
 
 STORE_NAMES = {
@@ -132,6 +151,7 @@ TITLE_STORES = [("home depot", "Home Depot"), ("lowe's", "Lowe's"), ("lowes", "L
                 ("ebay", "eBay"), ("dell", "Dell"), ("lenovo", "Lenovo")]
 
 MONEY = r"\$\s?([\d,]+(?:\.\d{1,2})?)"
+SHIP_MIN = re.compile(r"(?:free\s+)?(?:shipping|s&h|store pickup)\s+(?:w/|with|on)\s+(?:orders?\s+(?:of\s+)?)?\$[\d,.]+\+?", re.I)
 
 
 def now():
@@ -188,11 +208,17 @@ def parse_prices(text):
     m = re.search(r"(?:reg\.?|was|list(?: price)?|orig(?:inal|\.)?|msrp|retail|compare at)\s*:?\s*" + MONEY, t, re.I)
     if m:
         was = to_num(m.group(1))
-    # "$335 off" is a discount, not the price
-    prices = [p for p in (to_num(x) for x in re.findall(MONEY + r"(?!\s*off\b)(?![\d,.])", t)) if p is not None]
+    # Shipping minimums, "$335 off", "save $200", "$50 credit" and "$1.2k" are not the price
+    t = SHIP_MIN.sub(" ", t)
+    prices = [p for p in (to_num(x) for x in re.findall(
+        r"(?<!save )(?<!up to )" + MONEY + r"(?![.,]?\d)(?!\s*(?:off|credit|gift card|back|in rewards)\b)(?!\s*k\b)", t, re.I))
+        if p is not None]
     if FREE_ITEM.search(t) and not JUNK_FREE.search(t) and not prices:
         return 0.0, was, 100 if was else pct
     price = next((p for p in prices if p != was), prices[0] if prices else None)
+    m = re.search(r"=\s*" + MONEY, t)   # "($1299-$719 = $580)"
+    if m:
+        price = to_num(m.group(1))
     # "$1299 ($1599 - 300)" style from Reddit
     m = re.search(MONEY + r"\s*\(\s*" + MONEY + r"\s*-\s*\$?\s?([\d,.]+)", t)
     if m:
@@ -364,7 +390,7 @@ def parse_reddit(tag, raw):
     return out
 
 
-BLOG_SRC = {"9to5toys": "9to5Toys", "macrumors": "MacRumors", "dappered": "Dappered"}
+BLOG_SRC = {"putthison": "Put This On", "gearpatrol": "Gear Patrol", "stitchdown": "Stitchdown", "9to5toys": "9to5Toys", "macrumors": "MacRumors", "dappered": "Dappered", "windowscentral": "Windows Central"}
 
 
 def parse_blog(tag, raw):
@@ -376,25 +402,55 @@ def parse_blog(tag, raw):
         link = (item.findtext("link") or "").strip()
         if not title or not link:
             continue
-        if not re.search(r"\$\s?\d|\d+\s?% off|\bsale\b|\bdeal", title, re.I) or re.search(r"\bwin it\b|giveaway", title, re.I):
+        if tag != "putthison" and (not re.search(r"\$\s?\d|\d+\s?% off|\bsale\b|\bdeal", title, re.I) or re.search(r"\bwin it\b|giveaway", title, re.I)):
+            continue
+        if tag in ("putthison", "gearpatrol", "stitchdown") and not re.search(r"inside track|\bsale\b|\bdeals?\b|% off|\$\d", title, re.I):
             continue
         body = item.findtext("content:encoded", default="", namespaces=ns) or item.findtext("description") or ""
         img = re.search(r'<img[^>]+src="([^"]+)"', body)
+        enc = item.find("enclosure")
+        img_url = enc.get("url") if enc is not None and (enc.get("type") or "").startswith("image") else (img.group(1) if img else None)
         price, was, pct = parse_prices(title)
         slug = re.sub(r"\W+", "", urllib.parse.urlparse(link).path)[-40:]
         out.append(base(tag[:2] + slug, BLOG_SRC.get(tag, tag), tag, title, link,
                         store_from_title(title), price, was, pct,
-                        parse_date(item.findtext("pubDate")), img.group(1) if img else None))
+                        parse_date(item.findtext("pubDate")), img_url))
     return out
 
 
-PARSERS = {"sd": parse_sd, "dn": parse_dn, "bens": parse_bens, "camel": parse_camel, "reddit": parse_reddit, "blog": parse_blog}
+SHOPIFY_STORES = {"nmwa": ("No Man Walks Alone", "https://www.nomanwalksalone.com"),
+                  "skoa": ("Skoaktiebolaget", "https://www.skoaktiebolaget.com")}
+
+
+def parse_shopify(tag, raw):
+    """Public Shopify sale collections: compare_at_price vs price is a real markdown."""
+    store, host = SHOPIFY_STORES[tag]
+    out = []
+    for p in json.loads(raw).get("products", []):
+        live = [v for v in p.get("variants", []) if v.get("available")]
+        prices = [to_num(v.get("price")) for v in live if to_num(v.get("price"))]
+        compares = [to_num(v.get("compare_at_price")) for v in live if to_num(v.get("compare_at_price"))]
+        if not prices or not compares:
+            continue
+        price, was = min(prices), max(compares)
+        if was <= price:
+            continue
+        vendor = p.get("vendor") or ""
+        title = f"{vendor} {p.get('title', '')}".strip() if vendor and vendor.lower() not in p.get("title", "").lower() else p.get("title", "")
+        img = (p.get("images") or [{}])[0].get("src")
+        out.append(base(f"sh{tag}{p['id']}", store, tag, title, f"{host}/products/{p['handle']}",
+                        store, price, was, None, None,
+                        img, vendor=vendor, apparel=True))
+    return out
+
+
+PARSERS = {"sd": parse_sd, "dn": parse_dn, "bens": parse_bens, "camel": parse_camel, "reddit": parse_reddit, "blog": parse_blog, "shopify": parse_shopify}
 
 
 def flags(d):
     t = d["title"]
     f = []
-    if LAPTOP.search(t) and not re.search(r"desktop|tower\b", t, re.I):
+    if LAPTOP.search(t) and not re.search(r"desktop|tower\b", t, re.I) and not ACCESSORY.search(t):
         f.append("laptop")
         if HIGH_COMPUTE.search(t):
             f.append("power")
@@ -402,21 +458,36 @@ def flags(d):
     if brand:
         f.append("brand")
         d["brand"] = brand
-    tailor = next((name for name, pat in TAILORING if re.search(pat, t, re.I)), None)
+    tailor = next((name for name, pat in TAILORING if re.search(pat, t + " " + (d.get("vendor") or ""), re.I)), None)
     if tailor and d.get("store") != "eBay":
         f.append("tailor")
         d["brand"] = tailor
+    elif d.get("apparel") and d.get("src") in ("No Man Walks Alone", "Skoaktiebolaget"):
+        # Casual pieces from these shops are "menswear"; tailored pieces and fine shoes count as tailoring.
+        d["brand"] = d.get("vendor") or d.get("store")
+        f.append("tailor" if TAILORED_PIECE.search(t) else "menswear")
+    elif d.get("src") in ("Put This On", "Stitchdown") and not re.search(r"ebay", t, re.I):
+        f.append("tailor")
     elif (LUX_STORES.search(t + " " + (d.get("store") or "")) and d.get("store") != "eBay"
           and MENS_FORMAL.search(t) and not re.search(r"women|womens|ladies|sneaker|running", t, re.I)):
         f.append("tailor")
-    is_pc = ("laptop" in f) or bool(DESKTOP.search(t)) or bool(CREATIVE.search(t))
+    is_pc = (("laptop" in f) or bool(DESKTOP.search(t)) or bool(CREATIVE.search(t))) and not ACCESSORY.search(t)
     if is_pc:
         f.append("pc")
         if DESKTOP.search(t) and HIGH_COMPUTE.search(t) and "power" not in f:
             f.append("power")
-    if (is_pc and d.get("price") is not None and 150 <= d["price"] <= 500
-            and not ACCESSORY.search(t) and CREATIVE_SPEC.search(t)):
-        f.append("creative")
+    price = d.get("price")
+    refurb = bool(REFURB.search(t))
+    budget = 550 if refurb else 500
+    if (is_pc and price is not None and 150 <= price <= budget and not ACCESSORY.search(t)
+            and not WEAK_PC.search(t)):
+        is_mac = bool(re.search(r"mac", t, re.I))
+        if (is_mac and APPLE_OK.search(t)) or (not is_mac and X86_OK.search(t) and RAM16.search(t)):
+            f.append("creative")
+        elif is_mac and APPLE_LITE.search(t):
+            f.append("creative-lite")
+        if price > 500 and ("creative" in f or "creative-lite" in f):
+            f.append("over-budget")
     if REFURB.search(t):
         f.append("refurb")
     if HIDE.search(t) or d.get("cat") == "Toys & Kids":
@@ -466,7 +537,7 @@ def main():
         except Exception as e:  # one bad feed shouldn't stop the rest
             errors.append(f"{tag}: {e}")
             sources[tag] = "error"
-        time.sleep(2 if kind == "reddit" else 0.7)
+        time.sleep(4 if kind == "reddit" else 0.7)
 
     stamp = iso(t)
     too_old = iso(t - timedelta(days=MAX_AGE_DAYS))
