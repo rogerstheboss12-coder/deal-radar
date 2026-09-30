@@ -68,6 +68,16 @@ CORE = [
     ("shopify", "cotopaxi", "https://cotopaxi.com/collections/sale/products.json?limit=250"),
     ("shopify", "filson", "https://www.filson.com/collections/sale/products.json?limit=250"),
     ("shopify", "or", "https://www.outdoorresearch.com/collections/sale/products.json?limit=250"),
+    ("shopify", "sanpetuna", "https://sanpetuna.com/en-us/collections/sale/products.json?limit=250"),
+    ("shopify", "sartoriale", "https://www.sartoriale.com/collections/sale/products.json?limit=250"),
+    ("shopify", "johnstons", "https://johnstonsofelgin.com/collections/mens-sale/products.json?limit=250"),
+    ("shopify", "osweeney", "https://www.oliversweeney.com/collections/sale-footwear/products.json?limit=250"),
+    ("shopify", "sb-patagonia", "https://www.sportsbasement.com/collections/patagonia/products.json?limit=250"),
+    ("shopify", "sb-tnf", "https://www.sportsbasement.com/collections/the-north-face/products.json?limit=250"),
+    ("shopify", "tiso", "https://www.tiso.com/collections/sale/products.json?limit=250"),
+    ("shopify", "techable", "https://techable.com/products.json?limit=250"),
+    ("shopify", "refurbio", "https://us.refurb.io/products.json?limit=250"),
+    ("shopify", "sysliq", "https://systemliquidation.com/products.json?limit=250"),
     ("dn", "dn-hot", "https://www.dealnews.com/?rss=1&sort=hotness"),
     ("dn", "dn-new", "https://www.dealnews.com/?rss=1"),
     ("dn", "dn-computers", "https://www.dealnews.com/c39/Computers/?rss=1&sort=time"),
@@ -494,7 +504,24 @@ SHOPIFY_STORES = {"nmwa": ("No Man Walks Alone", "https://www.nomanwalksalone.co
                   "cotopaxi": ("Cotopaxi", "https://cotopaxi.com", "USD", None),
                   "filson": ("Filson", "https://www.filson.com", "USD", None),
                   "or": ("Outdoor Research", "https://www.outdoorresearch.com", "USD", None)}
-OUTDOOR_SHOPS = {"evo-patagonia", "evo-tnf", "evo-mh", "cotopaxi", "filson", "or"}
+SHOPIFY_STORES.update({
+    "sanpetuna": ("San Petuna", "https://sanpetuna.com/en-us", "USD", None),
+    "sartoriale": ("Sartoriale", "https://www.sartoriale.com", "USD", None),
+    "johnstons": ("Johnstons of Elgin", "https://johnstonsofelgin.com", "GBP", None),
+    "osweeney": ("Oliver Sweeney", "https://www.oliversweeney.com", "GBP", None),
+    "sb-patagonia": ("Sports Basement", "https://www.sportsbasement.com", "USD", None),
+    "sb-tnf": ("Sports Basement", "https://www.sportsbasement.com", "USD", None),
+    "tiso": ("Tiso", "https://www.tiso.com", "GBP", None),
+    "techable": ("Techable", "https://techable.com", "USD", None),
+    "refurbio": ("refurb.io", "https://us.refurb.io", "USD", None),
+    "sysliq": ("System Liquidation", "https://systemliquidation.com", "USD", None),
+})
+OUTDOOR_SHOPS = {"evo-patagonia", "evo-tnf", "evo-mh", "cotopaxi", "filson", "or", "sb-patagonia", "sb-tnf", "tiso"}
+MULTI_BRAND_OUTDOOR = {"tiso"}                 # only named premium brands count as "brand" here
+REFURB_SHOPS = {"techable", "refurbio", "sysliq"}
+PAGES = {"herring": 3, "tiedeals": 4, "tiso": 3, "sanpetuna": 2, "sb-patagonia": 2, "sb-tnf": 2,
+         "techable": 2, "sysliq": 2}
+PREOWNED = re.compile(r"pre-?owned|\bused\b|vintage|\bworn\b|second-?hand|consign", re.I)
 
 
 # The shopper's sizes. Pants: any size. Unknown sizes (most feed posts) are not filtered.
@@ -567,7 +594,11 @@ def parse_shopify(tag, raw):
         if not prices or not compares:
             continue
         price, was = min(prices), max(compares)
-        if was <= price:
+        if was <= price or price > was * 0.7:     # keep 30%+ markdowns only
+            continue
+        tags = p.get("tags") or []
+        tags = " ".join(tags) if isinstance(tags, list) else str(tags)
+        if PREOWNED.search(p.get("title", "") + " " + tags):
             continue
         vendor = p.get("vendor") or ""
         title = f"{vendor} {p.get('title', '')}".strip() if vendor and vendor.lower() not in p.get("title", "").lower() else p.get("title", "")
@@ -580,7 +611,9 @@ def parse_shopify(tag, raw):
             fit, fit_sizes = title_size_fit(title)
         out.append(base(f"sh{tag}{p['id']}", store, tag, title, f"{host}/products/{p['handle']}",
                         store, price, was, None, None,
-                        img, vendor=vendor, apparel=tag not in OUTDOOR_SHOPS, outdoor=tag in OUTDOOR_SHOPS, cur=cur,
+                        img, vendor=vendor, apparel=tag not in OUTDOOR_SHOPS | REFURB_SHOPS,
+                        outdoor=tag in OUTDOOR_SHOPS, multi=tag in MULTI_BRAND_OUTDOOR,
+                        refurb_shop=tag in REFURB_SHOPS, cur=cur,
                         fine=not fine or bool(re.search(fine, vendor, re.I)),
                         fit=fit, sizes=list(dict.fromkeys(fit_sizes))[:6]))
     return out
@@ -615,7 +648,7 @@ def flags(d):
         if HIGH_COMPUTE.search(t):
             f.append("power")
     brand = next((name for name, pat in BRANDS if re.search(pat, t + " " + (d.get("vendor") or ""), re.I)), None)
-    if not brand and d.get("outdoor"):
+    if not brand and d.get("outdoor") and not d.get("multi"):
         brand = d.get("vendor") or d.get("store")
     if brand:
         f.append("brand")
@@ -643,7 +676,7 @@ def flags(d):
         if DESKTOP.search(t) and HIGH_COMPUTE.search(t) and "power" not in f:
             f.append("power")
     price = d.get("price")
-    refurb = bool(REFURB.search(t))
+    refurb = bool(REFURB.search(t)) or bool(d.get("refurb_shop"))
     budget = 550 if refurb else 500
     if (is_pc and price is not None and 150 <= price <= budget and not ACCESSORY.search(t)
             and not WEAK_PC.search(t)):
@@ -660,9 +693,9 @@ def flags(d):
             d["fit"], d["sizes"] = fit, sz
     if d.get("fit") is False:
         f.append("nofit")
-    if REFURB.search(t):
+    if REFURB.search(t) or d.get("refurb_shop"):
         f.append("refurb")
-    if is_pc and not REFURB.search(t) and not re.search(r"\bused\b|for parts|broken|replacement|motherboard|screen|keyboard|battery|charger|case\b|skin", t, re.I):
+    if is_pc and not refurb and not re.search(r"\bused\b|for parts|broken|replacement|motherboard|screen|keyboard|battery|charger|case\b|skin", t, re.I):
         floor = spec_floor(t)
         if floor and price is not None and 0 < price <= 0.4 * floor:
             d["spec_floor"] = floor
@@ -694,6 +727,8 @@ GREEN_MAX, GREEN_PER_SOURCE, GREEN_MIN_PRICE = 20, 4, 40
 def green_candidate(d):
     """A real 50%+ markdown on a men's item in the shopper's lanes."""
     f = set(d.get("flags") or [])
+    if "refurb" in f and "pc" in f and "creative" not in f and not {"tailor", "brand"} & f:
+        return False
     return ((d.get("pct") or 0) >= 50 and d.get("was") and (d.get("price") or 0) >= GREEN_MIN_PRICE
             and not {"roundup", "hide", "womens", "nofit"} & f and bool({"pc", "tailor", "brand"} & f))
 
@@ -825,10 +860,7 @@ def main():
         expanded = []
         for kind, tag, url in jobs:
             expanded.append((kind, tag, url))
-            if tag == "herring":
-                expanded += [(kind, tag, url + f"&page={n}") for n in (2, 3)]
-            if tag == "tiedeals":
-                expanded += [(kind, tag, url + f"&page={n}") for n in (2, 3, 4)]
+            expanded += [(kind, tag, url + f"&page={n}") for n in range(2, PAGES.get(tag, 1) + 1)]
         for i, (kind, tag, url) in enumerate(expanded):
             if i:
                 time.sleep(4 if kind == "reddit" else 2 if tag == "tiedeals" else 0.5)
