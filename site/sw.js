@@ -1,7 +1,7 @@
 // Deal Radar service worker: makes the page installable and shows push
 // notifications. It caches only the page shell (a few KB); deal data always
 // comes fresh from the network.
-const SHELL = "dr-shell-v1";
+const SHELL = "dr-shell-v2";
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(SHELL).then(c => c.addAll(["./", "manifest.webmanifest", "icon-192.png"])));
   self.skipWaiting();

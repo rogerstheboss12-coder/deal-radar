@@ -92,8 +92,8 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stro
 .r{position:relative;overflow:hidden;background:var(--sf);touch-action:pan-y;content-visibility:auto;contain-intrinsic-size:auto 86px}
 .r+.r,.gh+.r{border-top:.5px solid var(--ln)}
 .gh+.r{border-top:0}
-.row{position:relative;display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:86px;padding:11px var(--gut);background:var(--sf);color:var(--ink);text-decoration:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;will-change:transform;transition:transform .22s cubic-bezier(.2,.9,.3,1)}
-.row.drag{transition:none}
+.row{position:relative;display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:86px;padding:11px var(--gut);background:var(--sf);color:var(--ink);text-decoration:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;z-index:1;transition:transform .22s cubic-bezier(.2,.9,.3,1)}
+.row.drag{transition:none;will-change:transform}
 .th{position:relative;width:64px;height:64px;border-radius:14px;background:#fff;border:.5px solid var(--ln);overflow:hidden;display:grid;place-items:center}
 .th img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:2px}
 .th.no{background:hsl(var(--h) 40% 88%);border-color:transparent}
@@ -126,9 +126,11 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stro
 .r.gold .pc{background:var(--gink);color:var(--gold)}
 @media (prefers-color-scheme:dark){.r.gold .why{color:var(--gink)}}
 .wn{font:600 11px/1.3 var(--fb);color:var(--warn)}
-.r.oos .row{opacity:.5}
-.r.stale .row{opacity:.6}
-.acts{position:absolute;top:0;right:0;bottom:0;width:156px;display:flex}
+.r.oos .row>*{opacity:.5}
+.r.stale .row>*{opacity:.6}
+/* Swipe buttons exist only while a row is moved or open, so they can never show through it. */
+.acts{position:absolute;top:0;right:0;bottom:0;width:156px;display:flex;visibility:hidden}
+.r.sw .acts{visibility:visible}
 .acts button{flex:1;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font:700 11px var(--fb);color:#fff;min-width:44px}
 .acts .aw{background:var(--gold);color:var(--gink)}
 .acts .ah{background:#5b6070}
@@ -463,7 +465,8 @@ $("#fresh").addEventListener("click",()=>load(true));
 /* ---------- swipe rows ---------- */
 const AW=156;let sw=null,openRow=null,noClick=0;
 const rowOf=r=>r.querySelector(".row");
-function setX(r,x,anim){const w=rowOf(r);w.classList.toggle("drag",!anim);w.style.transform=x?`translate3d(${x}px,0,0)`:"";}
+function setX(r,x,anim){const w=rowOf(r);w.classList.toggle("drag",!anim);w.style.transform=x?`translate3d(${x}px,0,0)`:"";
+  clearTimeout(r._sw);if(x)r.classList.add("sw");else r._sw=setTimeout(()=>{if(!w.style.transform)r.classList.remove("sw")},anim?260:0);}
 function closeOpen(){if(openRow){setX(openRow,0,true);openRow=null}}
 list.addEventListener("pointerdown",e=>{
   const r=e.target.closest(".r");if(!r||e.target.closest(".acts")||e.button>0)return;
