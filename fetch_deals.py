@@ -487,6 +487,7 @@ SHOPIFY_STORES = {"nmwa": ("No Man Walks Alone", "https://www.nomanwalksalone.co
                   "herring": ("Herring Shoes", "https://www.herringshoes.co.uk", "GBP",
                               r"church|tricker|carlos santos|crockett|edward green|alden"),
                   "tanda": ("Turnbull & Asser", "https://www.turnbullandasser.co.uk", "GBP", None),
+                  "tiedeals": ("TieDeals", "https://tiedeals.com", "USD", None),
                   "evo-patagonia": ("evo", "https://www.evo.com", "USD", None),
                   "evo-tnf": ("evo", "https://www.evo.com", "USD", None),
                   "evo-mh": ("evo", "https://www.evo.com", "USD", None),
@@ -687,7 +688,10 @@ def main():
     known_prev_ranked = [dict(v) for v in known.values()]
 
     group = (t.minute // 5) % 3 if known else None   # first run fetches every search
-    hourly = [("apple", "apple-refurb", "https://www.apple.com/shop/refurbished/mac")]
+    # Hourly: Apple's refurb page, and TieDeals (it rate-limits, so it gets a light touch;
+    # a bot-check response just fails this source for the run, with no retry).
+    hourly = [("apple", "apple-refurb", "https://www.apple.com/shop/refurbished/mac"),
+              ("shopify", "tiedeals", "https://tiedeals.com/products.json?limit=250")]
     feeds = list(CORE) + (hourly if group is None or t.minute < 5 else []) + [("sd", "q:" + q, SD + "q=" + urllib.parse.quote_plus(q))
                           for i, q in enumerate(SEARCHES) if group is None or i % 3 == group]
 
@@ -704,9 +708,11 @@ def main():
             expanded.append((kind, tag, url))
             if tag == "herring":
                 expanded += [(kind, tag, url + f"&page={n}") for n in (2, 3)]
+            if tag == "tiedeals":
+                expanded += [(kind, tag, url + f"&page={n}") for n in (2, 3, 4)]
         for i, (kind, tag, url) in enumerate(expanded):
             if i:
-                time.sleep(4 if kind == "reddit" else 0.5)
+                time.sleep(4 if kind == "reddit" else 2 if tag == "tiedeals" else 0.5)
             try:
                 results.append((tag, PARSERS[kind](tag, get(url)), None))
             except Exception as e:  # one bad feed shouldn't stop the rest
