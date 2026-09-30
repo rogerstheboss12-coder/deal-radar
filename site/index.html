@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0f1d17">
+<meta name="theme-color" content="#eceef2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <title>Deal Radar</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
@@ -12,448 +13,598 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Deal Radar">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="color-scheme" content="light dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700;800&family=Geist+Mono:wght@500;700&display=swap">
 <style>
-/* Layout: instrument-panel header with live radar sweep; image-first grid where
-   your best deals turn signal-green and say why. */
+/* GLANCE: iOS-widget utility. Summary tiles, one dense list, tabular price column,
+   swipe-left row actions, lane dock under the thumb. Gold = pick up now, green = best for you. */
 :root{
-  --bg:#edf0ea; --surface:#fafbf8; --ink:#0f1d17; --muted:#5e6b64; --line:#d5dbd3; --chip:#e2e7df;
-  --gold:#d4a017; --gold-ink:#8a6200;
-  --tile:#f1f3ee; --best:#17a35a; --best-tile:#d3efdd; --best-ink:#0b5a31; --cut:#e4572e; --warn:#c98a12;
-  --f-display:"Bricolage Grotesque","Avenir Next Condensed","Arial Narrow",sans-serif;
-  --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
-  color-scheme:light;
-}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0c1210; --surface:#131b17; --ink:#e7efe9; --muted:#93a39a; --line:#25302a; --chip:#1d2722;
-  --tile:#e4e9e3; --best:#3ddc84; --best-tile:#b9e8cb; --best-ink:#7ff0b0; --cut:#ff7a50; --warn:#f0b43a; --gold:#f2c230; --gold-ink:#f7d86a; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0c1210; --surface:#131b17; --ink:#e7efe9; --muted:#93a39a; --line:#25302a; --chip:#1d2722;
-  --tile:#e4e9e3; --best:#3ddc84; --best-tile:#b9e8cb; --best-ink:#7ff0b0; --cut:#ff7a50; --warn:#f0b43a; --gold:#f2c230; --gold-ink:#f7d86a; color-scheme:dark}
-*{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);padding-inline:16px;padding-block:0 56px}
-.wrap{max-width:1280px;margin:0 auto}
-:focus-visible{outline:2px solid var(--best);outline-offset:2px}
+  --bg:#eceef2;--bgt:rgba(236,238,242,.86);--sf:#fff;--ink:#0d0f14;--mut:#646a77;--ln:#e0e2e8;--chip:#eceef3;
+  --gold:#ffb800;--gink:#1a1200;--gsoft:#fff1c2;--grn:#0c7a42;--grnon:#fff;--gnsoft:#e0f4e8;--cut:#e5401f;--warn:#a85f00;--dock:rgba(255,255,255,.84);
+  --fb:"Schibsted Grotesk",-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  --fm:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --gut:max(16px,env(safe-area-inset-left,0px));
+  --dockh:calc(62px + env(safe-area-inset-bottom,0px));
+  color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#000;--bgt:rgba(0,0,0,.82);--sf:#131317;--ink:#f3f4f7;--mut:#8d92a0;--ln:#25262d;--chip:#1e1f26;
+  --gold:#ffc21a;--gsoft:#2a2103;--grn:#38d484;--grnon:#03150b;--gnsoft:#0b2a1a;--cut:#ff6a4d;--warn:#f3b33c;--dock:rgba(19,19,23,.84)}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%;background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.35 var(--fb);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button,input,select{font:inherit;color:inherit;touch-action:manipulation}
+button{cursor:pointer}
+svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+:focus-visible{outline:2px solid var(--grn);outline-offset:2px}
+.app{max-width:560px;margin:0 auto;min-height:100dvh;padding-bottom:calc(var(--dockh) + 28px)}
+.scrim{position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bgt);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 
-/* Header */
-.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-block:22px 14px}
-.brand{display:flex;align-items:center;gap:12px}
-.scope{width:46px;height:46px;flex:none}
-.scope .sweep{transform-origin:50% 50%;animation:spin 30s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.scope .sweep{animation:none}}
-h1{font:800 34px/0.95 var(--f-display);letter-spacing:-.025em;margin:0}
-h1 small{display:block;font:500 12px var(--f-mono);letter-spacing:.04em;color:var(--muted);margin-top:4px;text-transform:uppercase}
-.readout{display:grid;grid-auto-flow:column;gap:18px;font:500 12px/1.3 var(--f-mono);color:var(--muted)}
-.readout b{display:block;font:700 18px var(--f-mono);color:var(--ink)}
-.readout .stale b{color:var(--warn)}
+/* header */
+.hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 10px) var(--gut) 10px}
+.hd h1{margin:0;font:800 26px/1 var(--fb);letter-spacing:-.03em}
+.fresh{display:flex;align-items:center;gap:6px;padding:0;border:0;background:none;font:500 11.5px/1.2 var(--fm);color:var(--mut);min-height:44px;margin:-8px 0 -16px;text-align:left}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--grn);flex:none}
+.fresh.stale .dot{background:var(--warn)}.fresh.stale{color:var(--warn)}.fresh.off .dot{background:var(--cut)}
+.bell{width:44px;height:44px;border-radius:50%;border:0;background:var(--sf);display:grid;place-items:center;flex:none}
 
-/* Controls */
-.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding-block:10px;display:grid;gap:10px;border-bottom:1px solid var(--line)}
-.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
-.tabs::-webkit-scrollbar{display:none}
-.tabs button{flex:none;display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 13px var(--f-body);padding:8px 13px;border-radius:999px;cursor:pointer}
-.tabs button .n{font:500 11px var(--f-mono);color:var(--muted)}
-.tabs button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
-.tabs button[aria-pressed="true"] .n{color:inherit;opacity:.7}
-.tabs button.me{border-color:var(--best)}
-.filters{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:8px}
-.filters input,.filters select{font:14px var(--f-body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-width:0}
-.filters #maxp{width:100px}
-@media (max-width:640px){.filters{grid-template-columns:1fr 1fr}.filters #q{grid-column:1/-1}.filters #maxp{width:auto}
-  .bar{position:static}.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);padding-block:8px;margin-block:-8px}
-  .readout{gap:12px}.readout b{font-size:16px}h1{font-size:28px}}
-details.more-filters>summary{cursor:pointer;font:600 13px var(--f-body);color:var(--muted);list-style:none}
-details.more-filters>summary::-webkit-details-marker{display:none}
-details.more-filters>summary::before{content:"▸ ";}
-details.more-filters[open]>summary::before{content:"▾ ";}
-details.more-filters>div{display:grid;gap:10px;margin-top:10px}
-@media (min-width:641px){details.more-filters>summary{display:none}}
-.chips{display:flex;gap:6px;flex-wrap:wrap}
-.chips button{border:0;background:var(--chip);color:var(--ink);font:600 12px var(--f-body);padding:5px 10px;border-radius:7px;cursor:pointer}
-.chips button .n{font:500 11px var(--f-mono);color:var(--muted);margin-left:3px}
-.chips button[aria-pressed="true"]{background:var(--best);color:#fff}
-.chips button[aria-pressed="true"] .n{color:inherit}
-.alertrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
-.alertrow input{flex:1 1 240px;min-width:0;font:13px var(--f-mono);color:var(--ink);background:transparent;border:1px dashed var(--line);border-radius:10px;padding:7px 10px}
-.ghost{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 12px var(--f-body);padding:7px 11px;border-radius:9px;cursor:pointer}
-.pushcode{display:grid;gap:8px;font-size:13px;color:var(--muted)}
-.pushcode p{margin:0}
-.pushcode textarea{width:100%;font:11px var(--f-mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px;resize:none}
-.pushcode button{justify-self:start}
-.help{margin:14px 0 0;font-size:13px;color:var(--muted);max-width:85ch}
-.help:empty{display:none}
+/* widgets */
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:0 var(--gut)}
+.tile{appearance:none;border:0;text-align:left;background:var(--sf);color:var(--ink);border-radius:18px;padding:10px 10px 9px;min-height:94px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;min-width:0}
+.tile .k{font:700 9.5px/1.15 var(--fm);letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.tile .v{font:800 31px/1 var(--fb);letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.tile .v small{font-size:16px;letter-spacing:0;margin-left:1px}
+.tile .s{font:500 10.5px/1.2 var(--fm);color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile.g{background:var(--gold);color:var(--gink)}.tile.g .k,.tile.g .s{color:rgba(26,18,0,.72)}
+.tile.n{background:var(--grn);color:var(--grnon)}.tile.n .k,.tile.n .s{color:inherit;opacity:.8}
+.tile.z .v{color:var(--mut)}
+.tile[aria-pressed="true"]{box-shadow:0 0 0 2.5px var(--ink)}
+.tile.g.pulse .ico{animation:pl 1.6s ease-in-out infinite}
+@keyframes pl{50%{opacity:.35}}
+.tile .top{display:flex;justify-content:space-between;align-items:flex-start;gap:4px}
+.tile .top svg{width:14px;height:14px;stroke-width:2.4}
 
-/* Spotlight */
-.spot{margin-top:18px}
-.spot h2,.gridhead{font:800 22px/1.1 var(--f-display);letter-spacing:-.01em;margin:0 0 12px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.spot h2 span,.gridhead span{font:500 12px var(--f-mono);color:var(--muted);letter-spacing:0}
-.spot .grid{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
-.gridhead{margin-top:28px}
+/* lane title + sticky search */
+.lh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:18px var(--gut) 2px;scroll-margin-top:calc(env(safe-area-inset-top,0px) + 6px)}
+.lh h2{margin:0;font:800 22px/1.1 var(--fb);letter-spacing:-.02em}
+.lh .n{font:500 12px var(--fm);color:var(--mut)}
+.lp{margin:0;padding:0 var(--gut) 10px;font-size:12.5px;line-height:1.35;color:var(--mut)}
+.sb{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;padding:8px var(--gut);background:var(--bgt);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px);border-bottom:.5px solid var(--ln)}
+.sr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.sf{position:relative;display:block}
+.sf svg{position:absolute;left:12px;top:50%;translate:0 -50%;color:var(--mut);width:18px;height:18px;pointer-events:none}
+.sf input{width:100%;height:44px;border:0;border-radius:12px;background:var(--sf);padding:0 12px 0 38px;font-size:16px;-webkit-appearance:none;appearance:none}
+.sf input::placeholder{color:var(--mut)}
+.so{height:44px;border:0;border-radius:12px;background:var(--sf) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 11px center;-webkit-appearance:none;appearance:none;padding:0 30px 0 12px;font-size:16px;font-weight:600;max-width:150px}
+.fc{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font:500 12px var(--fm);color:var(--mut)}
+.fc b{color:var(--ink);font-weight:700}
+.fc button{border:0;background:var(--chip);border-radius:999px;padding:0 12px;min-height:44px;margin:-8px 0;font:600 12px var(--fb)}
 
-/* Cards */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
-@media (max-width:540px){.grid,.spot .grid{grid-template-columns:1fr 1fr;gap:10px}}
-.deal{position:relative;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
-@media (prefers-reduced-motion:no-preference){.deal{transition:transform .15s,box-shadow .15s}.deal:hover{transform:translateY(-2px);box-shadow:0 8px 24px color-mix(in srgb,var(--ink) 10%,transparent)}}
-.tile{position:relative;aspect-ratio:1/1;max-width:100%;background:var(--tile)}
-.tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:12px;mix-blend-mode:multiply}
-.tile.noimg{display:grid;place-items:center}
-.tile.noimg::after{content:attr(data-store);font:800 22px var(--f-display);color:#5e6b64;text-align:center;padding:0 14px}
-.store{position:absolute;left:8px;top:8px;height:22px;padding:0 8px;border-radius:6px;display:grid;place-items:center;font:600 11px var(--f-body);color:#fff;max-width:calc(100% - 56px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.flags{position:absolute;left:8px;bottom:8px;display:flex;gap:4px;flex-wrap:wrap}
-.flags span{font:700 10px var(--f-mono);padding:3px 6px;border-radius:5px;background:#0f1d17;color:#fafbf8;letter-spacing:.03em}
-.flags .a{background:#e4572e}.flags .c{background:#f2c230;color:#1b1a12}
-.star{position:absolute;right:2px;top:0;z-index:2;border:0;background:none;color:#5e6b64;font-size:23px;line-height:1;cursor:pointer;min-width:44px;min-height:44px;display:grid;place-items:center}
-.star[aria-pressed="true"]{color:#e4572e}
-.body{display:flex;flex-direction:column;gap:6px;padding:11px 12px 12px;flex:1;min-width:0}
-.why{font:700 11px/1.3 var(--f-mono);color:var(--best-ink);letter-spacing:.02em}
-.prow{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.price{font:700 21px var(--f-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.price.na{font:600 13px var(--f-body);color:var(--muted)}
-.was{font:500 12px var(--f-mono);color:var(--muted);text-decoration:line-through}
-.pct{font:700 11px var(--f-mono);color:#fff;background:var(--cut);padding:2px 6px;border-radius:5px}
-.deal a.t{color:var(--ink);text-decoration:none;font-weight:600;font-size:14px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
-.deal a.t::after{content:"";position:absolute;inset:0;z-index:1}
-.deal a.t:hover{text-decoration:underline}
-.meta{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:auto;padding-top:2px;font:500 11px var(--f-mono);color:var(--muted)}
-.meta .spec{border:1px solid var(--line);padding:0 5px;border-radius:4px;color:var(--ink)}
-.meta .nofit{color:var(--warn)}
-.meta .hot{color:var(--cut);font-weight:700}
-.target{position:relative;z-index:2;display:flex;gap:6px;align-items:center;font:12px var(--f-mono);color:var(--muted)}
-.target input{width:88px;font:12px var(--f-mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:4px 6px}
-svg.spark{display:block}
-.deal.fresh a.t::before{content:"NEW";font:700 10px var(--f-mono);background:var(--ink);color:var(--bg);padding:1px 5px;border-radius:4px;margin-right:6px;vertical-align:2px}
+/* list */
+.gh{display:flex;align-items:center;gap:8px;padding:0 var(--gut);min-height:36px;margin-top:0;background:var(--bg);font:700 11.5px var(--fm);letter-spacing:.07em;text-transform:uppercase;color:var(--mut)}
+.gh.s2{margin-top:14px}
+.gh svg{width:15px;height:15px;stroke-width:2.3}
+.gh .c{margin-left:auto;font-weight:500}
+.gh.gold{background:var(--gold);color:var(--gink);min-height:42px;font-size:12.5px;letter-spacing:.08em}
+.gh.gold svg{animation:pl 1.6s ease-in-out infinite}
+.gh.green{color:var(--grn)}
+.r{position:relative;overflow:hidden;background:var(--sf);touch-action:pan-y;content-visibility:auto;contain-intrinsic-size:auto 86px}
+.r+.r,.gh+.r{border-top:.5px solid var(--ln)}
+.gh+.r{border-top:0}
+.row{position:relative;display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:86px;padding:11px var(--gut);background:var(--sf);color:var(--ink);text-decoration:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;will-change:transform;transition:transform .22s cubic-bezier(.2,.9,.3,1)}
+.row.drag{transition:none}
+.th{position:relative;width:64px;height:64px;border-radius:14px;background:#fff;border:.5px solid var(--ln);overflow:hidden;display:grid;place-items:center}
+.th img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:2px}
+.th.no{background:hsl(var(--h) 40% 88%);border-color:transparent}
+.th.no::after{content:attr(data-i);font:800 18px var(--fb);color:hsl(var(--h) 45% 30%)}
+@media (prefers-color-scheme:dark){.th.no{background:hsl(var(--h) 28% 20%)}.th.no::after{color:hsl(var(--h) 60% 78%)}}
+.wst{position:absolute;left:3px;top:3px;width:17px;height:17px;border-radius:50%;background:var(--gold);color:var(--gink);display:grid;place-items:center;z-index:1}
+.wst svg{width:11px;height:11px;fill:currentColor;stroke:none}
+.mid{display:flex;flex-direction:column;gap:3px;min-width:0}
+.why{font:700 11px/1.25 var(--fm);color:var(--grn);letter-spacing:.01em;overflow-wrap:anywhere}
+.tt{font-weight:600;font-size:14px;line-height:1.28;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.mt{display:flex;align-items:center;flex-wrap:wrap;gap:2px 6px;font:500 11px/1.3 var(--fm);color:var(--mut);white-space:nowrap;overflow:hidden;max-height:1.4em}
+.mt .sz{color:var(--grn);font-weight:700}
+.mt .no{color:var(--warn)}
+.mt .hit{color:var(--gink);background:var(--gold);padding:0 5px;border-radius:4px;font-weight:700}
+.mt .nw{background:var(--ink);color:var(--bg);padding:0 5px;border-radius:4px;font-weight:700}
+.mt .sp{border:.5px solid var(--ln);border-radius:4px;padding:0 4px;color:var(--ink)}
+.mt .tg{color:var(--ink)}
+.px{display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:74px;font-family:var(--fm);font-variant-numeric:tabular-nums;text-align:right}
+.pr{font-weight:700;font-size:17px;letter-spacing:-.03em;line-height:1.1}
+.pr.na{font:600 12px var(--fb);color:var(--mut);letter-spacing:0}
+.wa{font-weight:500;font-size:11.5px;color:var(--mut);text-decoration:line-through;line-height:1.1}
+.pc{font-style:normal;font-weight:700;font-size:11px;line-height:1;padding:3px 5px;border-radius:6px;background:var(--chip);color:var(--ink)}
+.pc.hi{background:var(--cut);color:#fff}
+.r.best .row{background:var(--gnsoft);box-shadow:inset 4px 0 0 var(--grn)}
+.r.best .pc{background:var(--grn);color:var(--grnon)}
+.r.gold .row{background:var(--gsoft);box-shadow:inset 5px 0 0 var(--gold);grid-template-columns:84px minmax(0,1fr) auto;padding-block:13px}
+.r.gold .th{width:84px;height:84px;border-radius:18px;border:2px solid var(--gold)}
+.r.gold .why{color:var(--gink);background:var(--gold);align-self:flex-start;padding:2px 6px;border-radius:5px}
+.r.gold .pr{font-size:23px}
+.r.gold .pc{background:var(--gink);color:var(--gold)}
+@media (prefers-color-scheme:dark){.r.gold .why{color:var(--gink)}}
+.wn{font:600 11px/1.3 var(--fb);color:var(--warn)}
+.r.oos .row{opacity:.5}
+.r.stale .row{opacity:.6}
+.acts{position:absolute;top:0;right:0;bottom:0;width:156px;display:flex}
+.acts button{flex:1;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font:700 11px var(--fb);color:#fff;min-width:44px}
+.acts .aw{background:var(--gold);color:var(--gink)}
+.acts .ah{background:#5b6070}
+.acts svg{width:22px;height:22px}
+@media (hover:hover) and (pointer:fine){.row:hover{background:color-mix(in srgb,var(--ink) 4%,var(--sf))}}
 
-/* Best for you: signal green */
-.deal.best{border-color:var(--best);box-shadow:0 0 0 1px var(--best)}
-.deal.best .tile{background:radial-gradient(120% 90% at 50% 20%,color-mix(in srgb,var(--best-tile) 70%,#fff),var(--best-tile))}
-.deal.best .tile::before{content:"";position:absolute;inset:0;border-bottom:3px solid var(--best);pointer-events:none}
-.deal.hit{border-color:#f2c230;box-shadow:0 0 0 2px #f2c230}
-/* Golden find: pick it up now */
-.deal.gold{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold),0 10px 30px color-mix(in srgb,var(--gold) 35%,transparent)}
-.deal.gold .tile{background:radial-gradient(120% 90% at 50% 20%,#fff6d6,#f3d77a)}
-.deal.gold .tile::before{content:"";position:absolute;inset:0;border-bottom:3px solid var(--gold);pointer-events:none}
-.goldwhy{color:var(--gold-ink)}
-.warn{font:600 11px/1.35 var(--f-body);color:var(--warn)}
-.goldbar{margin-top:18px;border:2px solid var(--gold);border-radius:16px;padding:14px;background:color-mix(in srgb,var(--gold) 12%,var(--surface))}
-.goldbar h2{font:800 22px/1.1 var(--f-display);margin:0 0 12px;color:var(--gold-ink)}
-.goldbar h2 span{font:500 12px var(--f-mono);color:var(--muted)}
-.deal.stale{opacity:.6}
-.deal.stale .meta::after{content:"no longer in feeds";color:var(--warn)}
+.empty{padding:48px var(--gut);text-align:center;color:var(--mut);background:var(--sf)}
+.empty h3{margin:0 0 6px;font:800 20px var(--fb);color:var(--ink)}
+.sk{height:86px;display:grid;grid-template-columns:64px 1fr 60px;gap:12px;align-items:center;padding:0 var(--gut);background:var(--sf);border-top:.5px solid var(--ln)}
+.sk i{display:block;border-radius:12px;background:var(--chip);height:64px;animation:pl 1.3s ease-in-out infinite}
+.sk i+i{height:36px;border-radius:8px}.sk i+i+i{height:28px}
+#sent{height:1px}
 
-.empty{grid-column:1/-1;padding:44px 12px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}
-.empty h3{font:800 22px var(--f-display);color:var(--ink);margin:0 0 6px}
-.more{display:block;margin:22px auto 0;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 14px var(--f-body);padding:11px 20px;border-radius:10px;cursor:pointer}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:9;background:var(--best);color:#fff;font:700 14px var(--f-body);padding:11px 18px;border-radius:999px;border:0;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.25)}
-footer{margin-top:36px;font-size:12px;color:var(--muted);max-width:75ch}
+/* dock */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:center;pointer-events:none}
+.dock nav{pointer-events:auto;width:100%;max-width:560px;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:var(--dock);-webkit-backdrop-filter:saturate(1.8) blur(22px);backdrop-filter:saturate(1.8) blur(22px);border-top:.5px solid var(--ln);padding:5px 2px calc(5px + env(safe-area-inset-bottom,0px))}
+.dock button{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:50px;padding:3px 0;border:0;background:none;color:var(--mut);font:600 10.5px/1.2 var(--fb)}
+.dock .ic{position:relative;width:46px;height:28px;border-radius:14px;display:grid;place-items:center;transition:background .15s}
+.dock button[aria-current="true"]{color:var(--ink);font-weight:800}
+.dock button[aria-current="true"] .ic{background:var(--ink);color:var(--bg)}
+.dock button.gd .ic{color:var(--warn)}
+.dock button.gd[aria-current="true"] .ic{background:var(--gold);color:var(--gink)}
+.bd{position:absolute;right:-1px;top:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--gold);color:var(--gink);font:800 10px/17px var(--fm);text-align:center;box-shadow:0 0 0 2px var(--sf)}
+.bd.w{background:var(--ink);color:var(--bg)}
+
+/* toast + sheet */
+.toast{position:fixed;left:50%;translate:-50% 0;bottom:calc(var(--dockh) + 10px);z-index:25;max-width:calc(100% - 32px);display:flex;align-items:center;gap:6px;background:var(--ink);color:var(--bg);border-radius:999px;padding:0 6px 0 16px;min-height:44px;font:700 13.5px var(--fb);box-shadow:0 8px 28px rgba(0,0,0,.3);border:0}
+.toast b{border-radius:999px;padding:0 12px;min-height:36px;display:grid;place-items:center;background:var(--gold);color:var(--gink);font-weight:800}
+.toast[hidden]{display:none}
+.bk{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);opacity:0;transition:opacity .2s}
+.bk.on{opacity:1}.bk[hidden]{display:none}
+.sh{position:fixed;left:0;right:0;bottom:var(--kb,0px);z-index:41;display:flex;justify-content:center;transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.9,.3,1)}
+.sh.on{transform:none}.sh[hidden]{display:none}
+.sp2{width:100%;max-width:560px;background:var(--sf);border-radius:24px 24px 0 0;padding:8px var(--gut) calc(18px + env(safe-area-inset-bottom,0px));max-height:86dvh;overflow:auto;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+.grab{width:38px;height:5px;border-radius:3px;background:var(--ln);margin:0 auto 12px}
+.sp2 h3{margin:0 0 4px;font:800 20px var(--fb);letter-spacing:-.02em}
+.sp2 p{margin:0 0 12px;color:var(--mut);font-size:13.5px}
+.sp2 .ttl{color:var(--ink);font-weight:600;font-size:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fld{display:flex;align-items:center;gap:8px;background:var(--chip);border-radius:14px;padding:0 14px;height:54px;margin-bottom:12px}
+.fld span{font:700 20px var(--fm);color:var(--mut)}
+.fld input{flex:1;min-width:0;height:100%;border:0;background:none;font:700 24px var(--fm);outline:0;font-variant-numeric:tabular-nums}
+.fld.txt input{font:500 16px var(--fb)}
+.lbl{display:block;font:700 11px var(--fm);letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:0 0 6px}
+.bt{display:flex;gap:8px;margin-top:4px}
+.bt button{flex:1;min-height:50px;border-radius:14px;border:0;font:700 16px var(--fb);background:var(--chip)}
+.bt .pri{background:var(--ink);color:var(--bg)}
+.bt .dng{color:var(--cut)}.bt button:disabled{opacity:.4}
+.sp2 .fine{font-size:12px;line-height:1.45;margin-top:14px}
+.msg{font-size:13px;color:var(--ink);background:var(--chip);border-radius:12px;padding:10px 12px;margin:8px 0}
+.msg:empty{display:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <div class="brand">
-      <svg class="scope" viewBox="0 0 46 46" aria-hidden="true">
-        <defs><linearGradient id="sw" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--best)" stop-opacity="0"/><stop offset="1" stop-color="var(--best)" stop-opacity=".55"/></linearGradient></defs>
-        <circle cx="23" cy="23" r="21.5" fill="var(--surface)" stroke="var(--line)"/>
-        <circle cx="23" cy="23" r="14" fill="none" stroke="var(--line)"/>
-        <circle cx="23" cy="23" r="6.5" fill="none" stroke="var(--line)"/>
-        <g class="sweep"><path d="M23 23 L23 1.5 A21.5 21.5 0 0 1 41.6 12.2 Z" fill="url(#sw)"/><line x1="23" y1="23" x2="41.6" y2="12.2" stroke="var(--best)" stroke-width="1.5"/></g>
-        <circle cx="31" cy="15" r="2.2" fill="var(--best)"/><circle cx="15" cy="30" r="1.6" fill="var(--cut)"/>
-      </svg>
-      <h1>Deal Radar<small id="sub">Scanning deal feeds</small></h1>
+<div class="scrim"></div>
+<div class="app">
+  <header class="hd">
+    <div>
+      <h1>Deal Radar</h1>
+      <button class="fresh" id="fresh" type="button" aria-live="polite"><span class="dot"></span><span id="fresh-t">Scanning feeds</span></button>
     </div>
-    <div class="readout" id="readout" aria-live="polite">
-      <div><b id="r-count">—</b>deals</div>
-      <div><b id="r-best">—</b>best for you</div>
-      <div id="r-age-wrap"><b id="r-age">—</b>feed updated</div>
-    </div>
+    <button class="bell" id="bell" type="button" aria-label="Notifications and settings"><svg class="i" viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></button>
   </header>
-
-  <div class="bar">
-    <div class="tabs" role="toolbar" aria-label="Views" id="tabs"></div>
-    <div class="filters">
-      <input id="q" type="search" placeholder="Search (macbook pro, kiton, arc'teryx beta)" aria-label="Search deals">
-      <select id="cat" aria-label="Category"><option value="">All categories</option></select>
-      <input id="maxp" type="number" min="0" inputmode="decimal" placeholder="Max $" aria-label="Maximum price">
-      <select id="sort" aria-label="Sort">
-        <option value="me">Best for me</option>
-        <option value="new">Newest</option>
-        <option value="hot">Hottest</option>
-        <option value="pct">Biggest % off</option>
-        <option value="low">Lowest price</option>
-        <option value="power">Most powerful (video)</option>
+  <section class="tiles" id="tiles" aria-label="Summary"></section>
+  <div class="lh" id="lane"><h2 id="lane-t">My Picks</h2><span class="n" id="lane-n"></span></div>
+  <p class="lp" id="lane-p"></p>
+  <div class="sb">
+    <div class="sr">
+      <label class="sf"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search all deals" aria-label="Search deals" enterkeyhint="search" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
+      <select class="so" id="sort" aria-label="Sort">
+        <option value="me">Best for me</option><option value="new">Newest</option><option value="pct">Biggest % off</option><option value="low">Lowest price</option><option value="power">Most powerful</option>
       </select>
     </div>
-    <details class="more-filters" id="morefilters"><summary>Stores, brands &amp; alerts</summary><div>
-    <div class="chips" id="chips" aria-label="Filter by store or brand"></div>
-    <div class="alertrow">
-      <label for="alerts">Alert keywords</label>
-      <input id="alerts" placeholder="kiton, isaia, macbook pro m4, arcteryx beta">
-      <button class="ghost" id="notify" type="button" hidden>Turn on notifications</button>
-    </div>
-    <div class="pushcode" id="pushcode" hidden>
-      <p id="pushmsg"></p>
-      <textarea id="pushtext" readonly rows="3" aria-label="Notification code"></textarea>
-      <button class="ghost" id="pushcopy" type="button">Copy code</button>
-    </div>
-    </div></details>
+    <div class="fc" id="fc" hidden></div>
   </div>
-
-  <p class="help" id="help"></p>
-  <section class="goldbar" id="goldbar" hidden>
-    <h2>Golden finds: pick these up now <span id="gold-n"></span></h2>
-    <div class="grid" id="gold-grid"></div>
-  </section>
-  <section class="spot" id="spot" hidden>
-    <h2>Best for you right now <span id="spot-n"></span></h2>
-    <div class="grid" id="spot-grid"></div>
-  </section>
-  <h2 class="gridhead" id="gridhead" hidden>Everything else <span id="grid-n"></span></h2>
-  <div class="grid" id="list"></div>
-  <button class="more" id="more" hidden>Show more</button>
-  <button class="toast" id="toast" hidden></button>
-
-  <footer>Clothing and shoes are matched to your sizes where the store lists them: S/M/L, suits 36/38/40 (EU 46–50), any pants, shoes US 6.5–10. Out-of-size items never turn green or gold and are left out of My Picks. Gold cards are Golden Finds: a real 90%+ markdown on a men's item worth $100+ at full price in your lanes, a reported price error on a computer, or a new computer listed under a quarter of what its specs normally cost. They always send a notification. Green cards are the 20 absolute best for you: real markdowns of 50% or more on men's items of $40+ (never women's) in PCs, tailoring or outdoor brands, ranked by % off and dollars saved, at most 4 per store. Faded cards have dropped out of the source feeds. Deals come from public feeds (Slickdeals, DealNews, 9to5Toys, MacRumors, Windows Central, Gear Patrol, Put This On, Stitchdown, Dappered, No Man Walks Alone, Skoaktiebolaget, camelcamelcamel and Reddit deal communities) and each links to the original post. Software keys, subscriptions, kids, toys and pet deals are hidden. Retailers often cancel price-mistake orders, so check fast. Watchlist, targets and alerts are saved in this browser only.</footer>
+  <main id="list" aria-label="Deals"></main>
+  <div id="sent"></div>
 </div>
 
+<div class="dock"><nav id="dock" aria-label="Lanes"></nav></div>
+<button class="toast" id="toast" type="button" hidden></button>
+<div class="bk" id="bk" hidden></div>
+<div class="sh" id="sheet" hidden role="dialog" aria-modal="true"><div class="sp2" id="sbody"></div></div>
+
 <script>
-const STORE_COLORS={"Home Depot":"#e2641b","Lowe's":"#1a4f9c","Walmart":"#0a6fd6","Target":"#cc1f2d","Best Buy":"#0b3a8a","Amazon":"#232f3e","Costco":"#c4202f","Kohl's":"#6b1d3a","Dick's":"#146b4e","Micro Center":"#b3121f","Newegg":"#e05a00","B&H":"#1f1f1f","Apple":"#1d1d1f","Woot":"#5e7d1a","Nordstrom Rack":"#1c3f94","REI":"#3a5f2a"};
-const TABS=[["picks","My Picks"],["anomaly","Price anomalies"],["p95","95%+ off & free"],["creative","Creative PCs ≤$500"],["power","Power PCs"],["tailor","Tailoring"],["brand","Outdoor brands"],["major","Major deals"],["clr","Clearance"],["today","New today"],["all","All"],["alerts","Alerts"],["watch","Watchlist"]];
-const TAB_HELP={picks:"Your lanes only: PC price errors, video-capable machines ≤$500, tailoring, discounted power PCs, outdoor brands. Green = a real 50%+ markdown in your lanes.",
-  anomaly:"Reported price mistakes, 70%+ off, and prices that fell 30%+ since first seen.",
-  p95:"Real 95%+ discounts and genuinely free items. Rare; this fills the moment one is posted.",
-  creative:"Machines ≤$500 that can edit video: Apple silicon, or Ryzen 7/9 or Core i7/i9 with 16GB+. Refurb and open-box included.",
-  power:"High-compute laptops and desktops, ranked for video work: Apple Max/Pro chips and RAM first, then GPU.",
-  tailor:"Tailored pieces and fine shoes first (Orazio Luciano, Turnbull & Asser, Church's/Tricker's/Carlos Santos at Herring), then other menswear markdowns from No Man Walks Alone and Skoaktiebolaget. Watching Kiton, Isaia, Attolini, Borrelli, Sartorio, Edward Green, Crockett & Jones, Alden, Drake's, Charvet, plus tailoring at Saks Off 5th, Nordstrom Rack, Last Call, Gilt, YOOX, Mr Porter, SSENSE and END. No eBay.",
-  brand:"Patagonia, Arc'teryx, The North Face, Fjällräven, Canada Goose and similar brands."};
+"use strict";
 const $=s=>document.querySelector(s);
-const has=(d,f)=>(d.flags||[]).includes(f);
-const ls={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
-let deals=[],meta=null,freshIds=new Set(),pending=null,knownIds=null,tab=ls.get("dr.tab2","picks"),chips=new Set(),limit=60;
-let watch=ls.get("dr.watch",{});
-$("#alerts").value=ls.get("dr.alerts","");
+const has=(d,f)=>!!d.flags&&d.flags.indexOf(f)>-1;
+const ls={get(k,v){try{const x=localStorage.getItem(k);return x?JSON.parse(x):v}catch(e){return v}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const SYM={USD:"$",EUR:"€",GBP:"£"};
+const sym=d=>SYM[d.cur]||"$";
+const money=(n,c)=>n==null?"":n===0?"FREE":(SYM[c]||"$")+(n>=100?Math.round(n).toLocaleString():n.toFixed(2).replace(/\.00$/,""));
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ago=iso=>{if(!iso)return"";const m=Math.max(0,Math.round((Date.now()-Date.parse(iso))/6e4));return m<1?"now":m<60?m+"m":m<1440?Math.round(m/60)+"h":Math.round(m/1440)+"d"};
+const P=(p)=>`<svg class="i" viewBox="0 0 24 24">${p}</svg>`;
+const IC={
+  picks:P('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/>'),
+  gold:P('<path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/>'),
+  creative:P('<rect x="4.5" y="5" width="15" height="10.5" rx="2"/><path d="M2.5 19.5h19"/>'),
+  tailor:P('<path d="M12 8.5a2.4 2.4 0 1 0-2.4-2.4"/><path d="M12 8.5V10l8.6 5.6a1.4 1.4 0 0 1-.8 2.6H4.2a1.4 1.4 0 0 1-.8-2.6L12 10"/>'),
+  outdoor:P('<path d="M2.5 19.5 9 8.5l4 6 2.5-3.5 6 8.5z"/>'),
+  all:P('<path d="M4 6.5h16M4 12h16M4 17.5h16"/>'),
+  watch:P('<path d="m12 3 2.7 5.7 6.3.8-4.6 4.3 1.2 6.2L12 17l-5.6 3 1.2-6.2L3 9.5l6.3-.8z"/>'),
+  hide:P('<path d="M3 3l18 18M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 8.5 4 9.5 6a12 12 0 0 1-2.6 3.3M6.5 7.4A12 12 0 0 0 2.5 12c1 2 4.5 6 9.5 6 1.4 0 2.6-.3 3.7-.8M9.9 9.9a3 3 0 0 0 4.2 4.2"/>')
+};
+const LANES=[
+ ["picks","Picks","My Picks","Your lanes only: PC price errors, video PCs, tailoring, outdoor. Green is a real 50%+ markdown."],
+ ["gold","Gold","Golden & anomalies","Pick-up-now finds first, then reported price mistakes, 70%+ off and sharp drops."],
+ ["creative","PCs","Creative PCs ≤ $550","Machines that can edit video at $550 or less. Refurb and open-box included."],
+ ["tailor","Tailor","Tailoring & shoes","Neapolitan and Italian tailoring, fine shoes, knitwear and other menswear markdowns."],
+ ["outdoor","Outdoor","Premium outdoor","Patagonia, Arc'teryx, The North Face, Fjällräven and similar."],
+ ["all","All","All deals","Everything in the feeds, minus women's, kids and hidden items."],
+ ["watch","Watch","Watchlist","Swipe a row left and tap Watch to track it and set a target price."]
+];
+const TT={};LANES.forEach(l=>TT[l[0]]=l);
 
-const normStore=s=>/^woot/i.test(s)?"Woot":/^digitalkeys/i.test(s)?"Digitalkeysbox":/^costco/i.test(s)?"Costco":/^dicks/i.test(s)?"Dick's":s;
-const keywords=()=>$("#alerts").value.split(",").map(s=>s.trim().toLowerCase()).filter(Boolean);
-const isAlert=d=>{const t=d.title.toLowerCase();return keywords().some(k=>k.split(/\s+/).every(w=>t.includes(w)))};
-const dropped=d=>{const h=d.hist||[];return h.length>1&&h[h.length-1][1]<h[h.length-2][1]};
-const isToday=d=>Date.now()-Date.parse(d.seen)<864e5;
-const hitTarget=d=>{const w=watch[d.id];return !!(w&&w.target!=null&&d.price!=null&&d.price<=w.target)};
-const isPick=d=>!has(d,"nofit")&&(has(d,"menswear")&&(d.pct||0)>=50||has(d,"creative")||has(d,"tailor")||has(d,"brand")||(has(d,"pc")&&has(d,"anomaly"))||(has(d,"power")&&(d.pct??0)>=30));
-const isMajor=d=>(d.pct??0)>=50||(d.score??0)>=25||d.pick||dropped(d)||has(d,"anomaly");
+let deals=[],byId=new Map(),meta=null,items=[],shown=0,pending=null,knownIds=null,freshIds=new Set(),focus="",q="",stats={};
+let tab=ls.get("dr.tab5","picks"),watch=ls.get("dr.watch",{}),hidden=ls.get("dr.hidden5",{});
+if(!TT[tab])tab="picks";
+$("#sort").value=ls.get("dr.sort5","me");
+let alertsStr=ls.get("dr.alerts","");
 
-// How good a deal is for this shopper, and why. Green = a real 50%+ markdown
-// (known original price, single item, not a sale roundup) in the shopper's lanes.
+/* ---------- classification ---------- */
+const oos=d=>d.fit===false||has(d,"nofit");
+const okD=d=>!hidden[d.id]&&!has(d,"hide")&&!has(d,"womens");
 const mineOf=d=>has(d,"pc")||has(d,"tailor")||has(d,"brand");
-function personal(d,kw){
-  if(has(d,"hide"))return{s:0,why:[],best:false};
-  let s=0;const why=[],mine=mineOf(d),pct=d.pct||0;
-  const real=pct>=50&&d.was!=null&&d.price!=null&&!has(d,"roundup")&&!has(d,"womens");
-  if(real){s+=40+Math.min(pct,95)/2;why.push(pct+"% off")}
-  if(has(d,"anomaly")){s+=mine?40:15;why.push(mine?"Possible price error":"Unusual price")}
-  if(has(d,"creative")){s+=35;why.push("Edits video under $500")}
-  if(has(d,"tailor")){s+=30;why.push(d.brand||"Tailoring")}
-  if(has(d,"brand")){s+=20;why.push(d.brand)}
-  if(has(d,"power")){s+=10;why.push("High-compute")}
-  if((d.score||0)>=10){s+=Math.min(d.score,75)/4;why.push("Community hot")}
-  if(dropped(d)){s+=10;why.push("Price just dropped")}
-  if(has(d,"roundup")||d.price==null)s*=0.4;
-  if(!mine)s*=0.5;
-  const t=d.title.toLowerCase(),alert=kw.some(k=>k.split(/\s+/).every(w=>t.includes(w)));
-  if(alert){s+=30;why.push("Matches your alert")}
-  if(hitTarget(d)){s+=40;why.push("Hit your target")}
-  if(d.spec_floor&&d.price<=d.spec_floor*0.4)why.unshift(`Specs usually cost $${d.spec_floor.toLocaleString()}+`);
-  if(d.golden)why.unshift(has(d,"anomaly")&&(d.pct||0)<90?"Possible price error":"Golden find");
-  return{s:s+(d.green?100:0)+(d.golden?500:0),why:[...new Set(why)].slice(0,3),best:!!d.green,gold:!!d.golden};
+const dropped=d=>{const h=d.hist||[];return h.length>1&&h[h.length-1][1]<h[h.length-2][1]};
+const hitTarget=d=>{const w=watch[d.id];return !!(w&&w.target!=null&&d.price!=null&&d.price<=w.target)};
+const isCreative=d=>has(d,"creative")||(has(d,"pc")&&d.price!=null&&d.price<=550&&/mac\s?book|mac\s?mini|imac/i.test(d.title)&&/\bM[1-6]\b/.test(d.title));
+const isPick=d=>!oos(d)&&((has(d,"menswear")&&(d.pct||0)>=50)||has(d,"creative")||has(d,"tailor")||has(d,"brand")||(has(d,"pc")&&has(d,"anomaly"))||(has(d,"power")&&(d.pct==null?0:d.pct)>=30));
+const bigOK=d=>!oos(d)&&d.price>0&&d.was>=40&&(d.pct||0)>=30&&!has(d,"roundup")&&(d.fit===true||(d.fit==null&&mineOf(d)));
+function inLane(d,t){
+  switch(t){
+    case"picks":return isPick(d);
+    case"gold":return !oos(d)&&(d._p.gold||has(d,"anomaly"));
+    case"creative":return isCreative(d);
+    case"tailor":return has(d,"tailor")||has(d,"menswear");
+    case"outdoor":return has(d,"brand");
+    case"watch":return !!watch[d.id];
+    default:return true;
+  }
 }
-const scoreAll=()=>{const kw=keywords();deals.forEach(d=>{d._p=personal(d,kw)})};
-const isBest=d=>!!d._p?.best;
-
+const keywords=()=>alertsStr.split(",").map(s=>s.trim().toLowerCase()).filter(Boolean);
 function specs(t){
-  const out=[],gpu=t.match(/RTX\s?(\d{4})(\s?Ti)?/i),m=t.match(/\bM([1-6])\s?(Pro|Max|Ultra)?\b/),cpu=t.match(/Ryzen\s?(AI\s)?\d{1,3}|Core\s?Ultra\s?\d|\bi[579]\b/i),ram=t.match(/\b(8|16|24|32|36|48|64|96|128)\s?GB\b/i);
-  if(m&&/mac/i.test(t))out.push("M"+m[1]+(m[2]?" "+m[2]:""));if(gpu)out.push("RTX "+gpu[1]+(gpu[2]?" Ti":""));
-  if(cpu)out.push(cpu[0].replace(/\s+/g," "));if(ram)out.push(ram[1]+"GB");return out;
+  const o=[],g=t.match(/RTX\s?(\d{4})(\s?Ti)?/i),m=t.match(/\bM([1-6])\s?(Pro|Max|Ultra)?\b/),c=t.match(/Ryzen\s?(AI\s)?\d{1,3}|Core\s?Ultra\s?\d|\bi[579]\b/i),r=t.match(/\b(8|16|24|32|36|48|64|96|128)\s?GB\b/i);
+  if(m&&/mac/i.test(t))o.push("M"+m[1]+(m[2]?" "+m[2]:""));if(g)o.push("RTX "+g[1]+(g[2]?" Ti":""));
+  if(c)o.push(c[0].replace(/\s+/g," "));if(r)o.push(r[1]+"GB");return o;
 }
 function power(t){
   let s=0;const g=t.match(/RTX\s?(\d{2})(\d{2})/i);
-  if(g){const tier=+g[2];s+=tier>=90?100:tier>=80?85:tier>=70?70:tier>=60?50:30;if(+g[1]>=50)s+=8;if(/\d{4}\s?Ti/i.test(t))s+=5}
-  const m=t.match(/\bM([1-6])\s?(Pro|Max|Ultra)?\b/);if(m&&/mac/i.test(t))s=Math.max(s*0.8,(m[2]==="Max"||m[2]==="Ultra"?110:m[2]==="Pro"?90:60)+(+m[1])*4);
+  if(g){const k=+g[2];s+=k>=90?100:k>=80?85:k>=70?70:k>=60?50:30;if(+g[1]>=50)s+=8}
+  const m=t.match(/\bM([1-6])\s?(Pro|Max|Ultra)?\b/);if(m&&/mac/i.test(t))s=Math.max(s*.8,(m[2]==="Max"||m[2]==="Ultra"?110:m[2]==="Pro"?90:60)+(+m[1])*4);
   const r=t.match(/\b(16|24|32|36|48|64|96|128)\s?GB\b/i);if(r)s+=Math.min(+r[1],128)/4;
   if(/ryzen\s?(ai\s)?9|ultra\s?9|\bi9\b/i.test(t))s+=8;return s;
 }
-function ago(iso){if(!iso)return"—";const m=Math.max(0,Math.round((Date.now()-Date.parse(iso))/6e4));return m<1?"now":m<60?m+"m":m<1440?Math.round(m/60)+"h":Math.round(m/1440)+"d"}
-const SYM={USD:"$",EUR:"€",GBP:"£"};
-const money=(n,cur)=>n==null?"":n===0?"FREE":(SYM[cur]||"$")+(n>=100?Math.round(n).toLocaleString():n.toFixed(2).replace(/\.00$/,""));
-const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function personal(d,kw){
+  const bad=oos(d);let s=0;const mine=mineOf(d),pct=d.pct||0;
+  if(pct>=50&&d.was!=null&&d.price!=null&&!has(d,"roundup"))s+=40+Math.min(pct,95)/2;
+  if(has(d,"anomaly"))s+=mine?40:15;
+  if(has(d,"creative"))s+=35;if(has(d,"tailor"))s+=30;if(has(d,"brand"))s+=20;if(has(d,"power"))s+=10;
+  if((d.score||0)>=10)s+=Math.min(d.score,75)/4;
+  if(dropped(d))s+=10;
+  if(has(d,"roundup")||d.price==null)s*=.4;if(!mine)s*=.5;
+  if(kw.length&&kw.some(k=>k.split(/\s+/).every(w=>d._s.includes(w))))s+=30;
+  if(hitTarget(d))s+=40;
+  const best=!!d.green&&!bad,gold=!!d.golden&&!bad;
+  return{s:s+(best?100:0)+(gold?500:0)-(bad?1e3:0),best,gold};
+}
+function whyLine(d,gold){
+  const p=[];
+  if(gold&&d.spec_floor){p.push("Price error? Specs usually "+money(d.spec_floor,"USD")+"+");if(d.pct)p.push(d.pct+"% off")}
+  else{if(d.pct)p.push(d.pct+"% off");if(gold&&has(d,"anomaly")&&(d.pct||0)<90)p.unshift("Possible price error")}
+  const b=d.brand||(has(d,"pc")?specs(d.title).slice(0,2).join(" "):"");if(b)p.push(b);
+  if(d.fit===true&&d.sizes&&d.sizes.length)p.push("your size "+d.sizes.join("/"));
+  return p.join(" · ");
+}
 
-function inTab(d,t){
-  return t==="all"||(t==="picks"&&isPick(d))||(t==="major"&&isMajor(d))||(["anomaly","p95","power","brand","creative"].includes(t)&&has(d,t))||(t==="tailor"&&(has(d,"tailor")||has(d,"menswear")))||
-    (t==="clr"&&d.clr)||(t==="today"&&isToday(d))||(t==="alerts"&&isAlert(d))||(t==="watch"&&!!watch[d.id]);
+/* ---------- build view model ---------- */
+function build(){
+  const kw=keywords();
+  deals.forEach(d=>{d._p=personal(d,kw)});
+  const base=deals.filter(okD),now=Date.now();
+  /* "new in the last hour": posted time when known; first-seen only when it isn't a cold-start bulk scan */
+  const rs=base.filter(d=>{const t=Date.parse(d.seen);return t&&now-t<36e5}).length,useSeen=rs<=base.length*.3;
+  const isNew=d=>{const t=Date.parse(d.posted||(useSeen?d.seen:""));return !!t&&now-t<36e5};
+  let gold=0,green=0,big=null,nw=0;
+  for(const d of base){
+    if(d._p.gold)gold++;if(d._p.best)green++;
+    if(isNew(d))nw++;
+    if(bigOK(d)&&(!big||d.pct>big.pct||(d.pct===big.pct&&d.was-d.price>big.was-big.price)))big=d;
+  }
+  stats={gold,green,big,nw,watch:base.filter(d=>watch[d.id]).length,total:base.length};
+  const sort=$("#sort").value,tm=d=>Date.parse(d.posted||d.seen)||0;
+  const key={me:d=>-d._p.s,new:d=>-tm(d),pct:d=>-(d.pct==null?-1:d.pct),low:d=>d.price==null?1e9:d.price,power:d=>-power(d.title)}[sort];
+  const cmp=(a,b)=>(oos(a)-oos(b))||(key(a)-key(b))||(tm(b)-tm(a));
+  let r,pin=false;
+  if(q){const ws=q.split(/\s+/);r=base.filter(d=>ws.every(w=>d._s.includes(w)))}
+  else if(focus==="green")r=base.filter(d=>d._p.best);
+  else if(focus==="big")r=base.filter(bigOK);
+  else if(focus==="new")r=base.filter(isNew);
+  else{r=base.filter(d=>inLane(d,tab));pin=tab!=="watch"}
+  r.sort(cmp);
+  items=[];
+  if(pin){
+    const g=base.filter(d=>d._p.gold).sort((a,b)=>(b.pct||0)-(a.pct||0)),ids=new Set(g.map(d=>d.id));
+    if(g.length){items.push({H:"gold",n:g.length});g.forEach(d=>items.push(d));r=r.filter(d=>!ids.has(d.id))}
+  }
+  if(!q&&!focus&&sort==="me"&&tab!=="watch"){
+    const g=r.filter(d=>d._p.best),rest=r.filter(d=>!d._p.best);
+    if(g.length){items.push({H:"green",n:g.length});g.forEach(d=>items.push(d))}
+    if(rest.length){if(items.length)items.push({H:"rest",n:rest.length});rest.forEach(d=>items.push(d))}
+  }else r.forEach(d=>items.push(d));
+  items.count=r.length;
 }
-const chipKey=t=>(t==="brand"||t==="tailor")?"brand":"store";
-function filtered(t=tab,useFilters=true){
-  const q=$("#q").value.trim().toLowerCase(),cat=$("#cat").value,maxp=parseFloat($("#maxp").value),key=chipKey(t);
-  return deals.filter(d=>!has(d,"hide")&&inTab(d,t)&&(!useFilters||(
-    (!q||d.title.toLowerCase().includes(q))&&(!cat||d.cat===cat)&&(!chips.size||chips.has(d[key]))&&(isNaN(maxp)||(d.price!=null&&d.price<=maxp)))));
+
+/* ---------- rendering ---------- */
+const hue=s=>{let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return h};
+const ini=s=>String(s).split(/\s+/).map(w=>w[0]||"").join("").slice(0,2).toUpperCase();
+const STAR='<svg viewBox="0 0 24 24"><path d="m12 2.5 2.9 6.1 6.6.8-4.9 4.6 1.3 6.6-5.9-3.3-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z"/></svg>';
+function rowHTML(d){
+  const p=d._p,gold=p.gold,best=p.best&&!gold,o=oos(d),w=watch[d.id],hit=hitTarget(d),isNew=freshIds.has(d.id);
+  const stale=meta&&d.last&&d.last<meta.updatedAt;
+  const cls="r"+(gold?" gold":best?" best":"")+(o?" oos":"")+(stale?" stale":"");
+  const img=d.img?`<img src="${esc(thumb(d.img,d.golden?252:192))}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">`:"";
+  const th=`<span class="th${d.img?"":" no"}" style="--h:${hue(d.store)}" data-i="${esc(ini(d.store))}">${img}${w?`<span class="wst">${STAR}</span>`:""}</span>`;
+  const why=(gold||best)?`<span class="why">${gold?"GOLDEN · ":""}${esc(whyLine(d,gold))}</span>`:"";
+  const m=[];
+  if(isNew)m.push('<span class="nw">NEW</span>');
+  if(hit)m.push('<span class="hit">TARGET HIT</span>');
+  m.push(`<span>${esc(d.store)}</span>`);
+  const t=ago(d.posted||d.seen);if(t)m.push(`<span>${t}</span>`);
+  if(has(d,"pc"))specs(d.title).slice(0,2).forEach(x=>m.push(`<span class="sp">${esc(x)}</span>`));
+  if(d.fit===true&&d.sizes&&d.sizes.length&&!(gold||best))m.push(`<span class="sz">size ${esc(d.sizes.slice(0,3).join("/"))}</span>`);
+  else if(o)m.push('<span class="no">not your size</span>');
+  if(w&&w.target!=null)m.push(`<span class="tg">≤${money(w.target,d.cur)}</span>`);
+  if(dropped(d))m.push('<span class="sz">dropped</span>');
+  const hi=(d.pct||0)>=70;
+  const px=`<span class="px"><b class="pr${d.price==null?" na":""}">${d.price==null?"See deal":money(d.price,d.cur)}</b>${d.was?`<s class="wa">${money(d.was,d.cur)}</s>`:""}${d.pct?`<i class="pc${hi?" hi":""}">−${d.pct}%</i>`:""}</span>`;
+  const wn=gold&&d.spec_floor?'<span class="wn">Check the seller: real price error or a scam listing.</span>':"";
+  return `<div class="${cls}" data-id="${esc(d.id)}"><div class="acts"><button type="button" class="aw" data-act="w" aria-label="${w?"Set target price":"Watch"}">${IC.watch}<span>${w?"Target":"Watch"}</span></button><button type="button" class="ah" data-act="h" aria-label="Hide">${IC.hide}<span>Hide</span></button></div><a class="row" href="${esc(d.url||"#")}" target="_blank" rel="noopener">${th}<span class="mid">${why}<span class="tt">${esc(d.title)}</span>${wn}<span class="mt">${m.join("")}</span></span>${px}</a></div>`;
 }
-function sorted(r){
-  const s=$("#sort").value,time=d=>Date.parse(d.posted||d.seen)||0;
-  const k={me:d=>-(d._p?.s||0),new:d=>-time(d),hot:d=>-(d.score??-99),pct:d=>-(d.pct??-1),low:d=>d.price??1e9,power:d=>-power(d.title)}[s];
-  return r.sort((a,b)=>(k(a)-k(b))||time(b)-time(a));
+function hdrHTML(h){
+  if(h.H==="gold")return `<div class="gh gold">${IC.gold}<span>Golden finds: pick up now</span><span class="c">${h.n}</span></div>`;
+  if(h.H==="green")return `<div class="gh green s2"><span class="dot"></span><span>Best for you</span><span class="c">${h.n}</span></div>`;
+  return `<div class="gh s2"><span>${esc(TT[tab][2])}</span><span class="c">${h.n}</span></div>`;
 }
-function spark(h){
-  if(!h||h.length<2)return"";
-  const v=h.map(x=>x[1]),lo=Math.min(...v),hi=Math.max(...v),w=56,ht=16,sp=hi-lo||1;
-  const pts=v.map((y,i)=>`${(i/(v.length-1)*w).toFixed(1)},${(ht-2-(y-lo)/sp*(ht-4)).toFixed(1)}`).join(" "),last=pts.split(" ").pop().split(",");
-  return `<svg class="spark" width="${w+4}" height="${ht}" viewBox="-2 0 ${w+4} ${ht}" aria-label="Price history"><polyline points="${pts}" fill="none" stroke="var(--muted)" stroke-width="1.4"/><circle cx="${last[0]}" cy="${last[1]}" r="2.4" fill="var(--best)"/></svg>`;
+const list=$("#list"),sent=$("#sent");
+const io="IntersectionObserver" in window?new IntersectionObserver(es=>{if(es[0].isIntersecting)more(40)},{rootMargin:"1400px 0px"}):null;
+function more(n){
+  if(shown>=items.length)return;
+  const end=Math.min(items.length,shown+n);let h="";
+  for(let i=shown;i<end;i++){const it=items[i];h+=it.H?hdrHTML(it):rowHTML(it)}
+  list.insertAdjacentHTML("beforeend",h);shown=end;
+  if(io){io.unobserve(sent);io.observe(sent)}else if(shown<items.length)more(40);
 }
-function card(d){
-  const p=d._p||{s:0,why:[],best:false},best=p.best,w=watch[d.id],hit=hitTarget(d),stale=meta&&d.last&&d.last<meta.updatedAt;
-  const fl=[has(d,"anomaly")&&'<span class="a">ANOMALY</span>',has(d,"free")&&'<span>FREE</span>',d.clr&&'<span class="c">CLEARANCE</span>',has(d,"refurb")&&'<span>REFURB</span>'].filter(Boolean).join("");
-  return `<article class="deal${p.gold?" gold":best?" best":""}${hit?" hit":""}${freshIds.has(d.id)?" fresh":""}${stale?" stale":""}">
-    <div class="tile${d.img?"":" noimg"}" data-store="${esc(d.store)}">${d.img?`<img src="${esc(d.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()">`:""}
-      <div class="store" style="background:${STORE_COLORS[d.store]||"#3c4a43"}">${esc(d.store)}</div>
-      ${fl?`<div class="flags">${fl}</div>`:""}
-    </div>
-    <button class="star" data-watch="${esc(d.id)}" aria-pressed="${!!w}" aria-label="${w?"Remove from":"Add to"} watchlist">${w?"★":"☆"}</button>
-    <div class="body">
-      ${p.gold?`<div class="why goldwhy">★ GOLDEN FIND · ${esc(p.why.slice(1).join(" · "))}</div>`:best?`<div class="why">● ${esc(p.why.join(" · "))}</div>`:""}
-      <div class="prow"><span class="price${d.price==null?" na":""}">${d.price==null?"See deal":money(d.price,d.cur)}</span>${d.was?`<span class="was">${money(d.was,d.cur)}</span>`:""}${d.pct?`<span class="pct">−${d.pct}%</span>`:""}${spark(d.hist)}</div>
-      <a class="t" href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.title)}</a>
-      ${d.golden&&d.spec_floor?`<div class="warn">Check the seller before buying: a real price error, or a third-party scam listing.</div>`:""}
-      <div class="meta">
-        ${has(d,"pc")?specs(d.title).map(x=>`<span class="spec">${esc(x)}</span>`).join(""):""}
-        ${d.brand&&!best?`<span>${esc(d.brand)}</span>`:""}
-        ${d.fit===true&&d.sizes?.length?`<span class="spec">Your size: ${esc(d.sizes.join(", "))}</span>`:""}
-        ${d.fit===false?`<span class="nofit">Not in your size</span>`:""}
-        ${d.score!=null?`<span class="${d.score>=25?"hot":""}">▲${d.score}</span>`:""}
-        <span>${ago(d.posted||d.seen)} ago · ${esc(d.src)}</span>
-      </div>
-      ${w?`<div class="target"><label for="t-${esc(d.id)}">Alert ≤ $</label><input id="t-${esc(d.id)}" data-target="${esc(d.id)}" type="number" min="0" step="0.01" value="${w.target??""}" placeholder="price"></div>`:""}
-    </div></article>`;
+function emptyMsg(){
+  if(q)return["No matches","Nothing in the feeds for “"+esc(q)+"”."];
+  if(focus)return["Nothing right now","Check back after the next scan."];
+  return{watch:["Nothing watched yet","Swipe any row left and tap Watch."],gold:["No golden finds or anomalies","They appear the moment one is posted."],tailor:["No tailoring right now","Searches run every 15 minutes."],creative:["No creative PCs right now","Machines that edit video at $550 or less show up here."]}[tab]||["Nothing here yet","Try another lane."];
 }
-function renderTabs(){
-  $("#tabs").innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" aria-pressed="${k===tab}"${k==="picks"?' class="me"':""}>${l}<span class="n">${deals.length?filtered(k,false).length:""}</span></button>`).join("");
-}
-function renderChips(){
-  const key=chipKey(tab),c={};filtered(tab,false).forEach(d=>{if(d[key])c[d[key]]=(c[d[key]]||0)+1});
-  const top=Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,12).map(e=>e[0]);chips.forEach(s=>{if(!top.includes(s))top.push(s)});
-  $("#chips").innerHTML=top.map(s=>`<button data-chip="${esc(s)}" aria-pressed="${chips.has(s)}">${esc(s)}<span class="n">${c[s]||0}</span></button>`).join("");
-  const cats=[...new Set(deals.map(d=>d.cat))].sort(),cur=$("#cat").value;
-  $("#cat").innerHTML='<option value="">All categories</option>'+cats.map(x=>`<option${x===cur?" selected":""}>${esc(x)}</option>`).join("");
-}
-function render(){
-  scoreAll();renderTabs();$("#help").textContent=TAB_HELP[tab]||"";
-  const list=$("#list"),spot=$("#spot");
+function render(keep){
   if(!deals.length){
-    spot.hidden=true;$("#gridhead").hidden=true;$("#more").hidden=true;
-    list.innerHTML=`<div class="empty"><h3>${meta===false?"Can't reach the deal feed":"Scanning…"}</h3>${meta===false?"Retrying every 30 seconds.":""}</div>`;return;
+    $("#tiles").innerHTML="";
+    list.innerHTML=meta===false?`<div class="empty"><h3>Can't reach the deal feed</h3>Retrying every 30 seconds.</div>`:'<div class="sk"><i></i><i></i><i></i></div>'.repeat(9);
+    chrome();return;
   }
-  let r=sorted(filtered());
-  const golds=deals.filter(d=>d.golden&&!has(d,"hide")).sort((a,b)=>(b.pct||0)-(a.pct||0));
-  $("#goldbar").hidden=!golds.length;
-  if(golds.length){$("#gold-grid").innerHTML=golds.map(card).join("");$("#gold-n").textContent=golds.length+(golds.length>1?" finds":" find");
-    const gid=new Set(golds.map(d=>d.id));r=r.filter(d=>!gid.has(d.id))}
-  const bestAll=deals.filter(d=>!has(d,"hide")&&isBest(d));$("#r-best").textContent=bestAll.length;
-  const spotItems=tab==="picks"&&$("#sort").value==="me"?r.filter(isBest).slice(0,4):[];
-  spot.hidden=!spotItems.length;$("#gridhead").hidden=!spotItems.length;
-  if(spotItems.length){$("#spot-grid").innerHTML=spotItems.map(card).join("");$("#spot-n").textContent=`${r.filter(isBest).length} green deals in your picks`;
-    const ids=new Set(spotItems.map(d=>d.id));r=r.filter(d=>!ids.has(d.id));$("#grid-n").textContent=r.length+" deals"}
-  if(!r.length&&!spotItems.length){
-    const msg=tab==="tailor"?"No tailoring deals right now. The public feeds rarely carry these brands; searches run every 15 minutes.":tab==="p95"?"Nothing at 95%+ off right now. These show up the moment one is posted.":tab==="watch"?"Tap ☆ on any deal to watch it and set a target price.":tab==="alerts"?"Add keywords above. Matches turn green everywhere.":"Nothing matches these filters.";
-    list.innerHTML=`<div class="empty"><h3>Nothing here yet</h3>${msg}</div>`;$("#more").hidden=true;return;
-  }
-  list.innerHTML=r.slice(0,limit).map(card).join("");
-  $("#more").hidden=r.length<=limit;$("#more").textContent=`Show more (${r.length-limit} left)`;
+  openRow=null;build();
+  const n=keep?Math.max(shown,36):36;
+  list.innerHTML="";shown=0;
+  if(!items.length){const e=emptyMsg();list.innerHTML=`<div class="empty"><h3>${e[0]}</h3>${e[1]}</div>`}
+  else more(n);
+  chrome();
 }
-let nextCheck=Date.now()+30000;
-function renderStatus(){
-  if(!meta)return;
-  $("#r-count").textContent=meta.count;
-  const age=(Date.now()-Date.parse(meta.updatedAt))/6e4;
-  $("#r-age").textContent=ago(meta.updatedAt)+" ago";$("#r-age-wrap").classList.toggle("stale",age>15);
-  const src=Object.values(meta.sources||{}),ok=src.filter(v=>v==="ok").length,s=Math.max(0,Math.round((nextCheck-Date.now())/1000));
-  $("#sub").textContent=`${ok}/${src.length} feeds live · next check ${s}s`;
+function chrome(){
+  const L=TT[tab];
+  $("#lane-t").textContent=q?"Search results":focus?({green:"Green: best for you",big:"Biggest cuts in your size",new:"New in the last hour"})[focus]:L[2];
+  $("#lane-n").textContent=deals.length?(items.count||0)+" deals":"";
+  $("#lane-p").textContent=q||focus?"":L[3];$("#lane-p").hidden=!!(q||focus);
+  const fc=$("#fc");
+  if(q||focus){fc.hidden=false;fc.innerHTML=`<span>${q?"Searching <b>all lanes</b>":"Filter <b>"+({green:"green picks",big:"top cuts",new:"newest"})[focus]+"</b>"}</span><button type="button" data-clear>Clear</button>`}else fc.hidden=true;
+  const s=stats;
+  const T=(cls,k,v,sub,foc,ico,dis)=>`<button type="button" class="tile ${cls}" ${foc?`data-focus="${foc}"`:'data-lane="gold"'} aria-pressed="${focus===foc&&!!foc}"><span class="top"><span class="k">${k}</span>${ico||""}</span><span class="v">${v}</span><span class="s">${esc(sub)}</span></button>`;
+  const b=s.big;
+  $("#tiles").innerHTML=deals.length?
+    T(s.gold?"g pulse":"z","Golden",s.gold||0,s.gold?"buy now":"none yet","",s.gold?`<span class="ico">${IC.gold}</span>`:"")+
+    T(s.green?"n":"z","Green",s.green||0,"for you","green")+
+    T(b?"":"z","Top cut",b?b.pct+"<small>%</small>":"–",b?(b.sizes&&b.sizes.length?"size "+b.sizes[0]:(b.brand||b.store).split(" ")[0]):"your size","big")+
+    T(s.nw?"":"z","New · 1h",s.nw||0,"last hour","new"):"";
+  renderDock();renderFresh();
+}
+function renderDock(){
+  $("#dock").innerHTML=LANES.map(l=>{
+    const k=l[0],cur=(tab===k&&!focus&&!q),bd=k==="gold"&&stats.gold?`<span class="bd">${stats.gold}</span>`:k==="watch"&&stats.watch?`<span class="bd w">${stats.watch}</span>`:"";
+    return `<button type="button" data-lane="${k}" class="${k==="gold"?"gd":""}" aria-current="${cur}" aria-label="${esc(l[2])}"><span class="ic">${IC[k]}${bd}</span><span>${l[1]}</span></button>`}).join("");
+}
+function renderFresh(){
+  const el=$("#fresh"),t=$("#fresh-t");
+  if(meta===false&&!deals.length){el.className="fresh off";t.textContent="Offline. Retrying…";return}
+  if(!meta){t.textContent="Scanning feeds…";return}
+  const age=(Date.now()-Date.parse(meta.updatedAt))/6e4,src=Object.values(meta.sources||{}),ok=src.filter(v=>v==="ok").length;
+  el.className="fresh"+(age>15?" stale":"");
+  t.textContent="Updated "+ago(meta.updatedAt)+(ago(meta.updatedAt)==="now"?"":" ago")+" · "+meta.count.toLocaleString()+" deals · "+ok+"/"+src.length+" feeds";
 }
 
-document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-tab],[data-chip],[data-watch]");if(!t)return;
-  if(t.dataset.tab){tab=t.dataset.tab;ls.set("dr.tab2",tab);limit=60;chips.clear();
-    const s=$("#sort");if(tab==="power"||tab==="creative")s.value="power";else if(s.value==="power")s.value="me";renderChips()}
-  if(t.dataset.chip){const s=t.dataset.chip;chips.has(s)?chips.delete(s):chips.add(s);limit=60;renderChips()}
-  if(t.dataset.watch){e.preventDefault();const id=t.dataset.watch,d=deals.find(x=>x.id===id);
-    if(watch[id])delete watch[id];else watch[id]={target:null,title:d?.title,price:d?.price};ls.set("dr.watch",watch)}
+/* ---------- navigation ---------- */
+function goLane(k){
+  const same=tab===k&&!focus&&!q;
+  tab=k;focus="";if(q){q="";$("#q").value=""}ls.set("dr.tab5",tab);
+  if(!same&&$("#sort").value==="power"&&k!=="creative")$("#sort").value="me";
+  if(k==="creative")$("#sort").value="power";
+  ls.set("dr.sort5",$("#sort").value);
   render();
+  const lh=$("#lane");if(same||lh.getBoundingClientRect().top<0)lh.scrollIntoView({block:"start",behavior:same?"smooth":"auto"});
+}
+function setFocus(f){
+  focus=focus===f?"":f;q="";$("#q").value="";
+  $("#sort").value=focus==="big"?"pct":focus==="new"?"new":"me";
+  render();
+  if(focus)$("#lane").scrollIntoView({block:"start"});
+}
+document.addEventListener("click",e=>{
+  const l=e.target.closest("[data-lane]"),f=e.target.closest("[data-focus]");
+  if(l){goLane(l.dataset.lane);return}
+  if(f){setFocus(f.dataset.focus);return}
+  if(e.target.closest("[data-clear]")){focus="";q="";$("#q").value="";$("#sort").value="me";render()}
 });
-document.addEventListener("change",e=>{
-  const id=e.target.dataset?.target;if(!id||!watch[id])return;
-  const v=parseFloat(e.target.value);watch[id].target=isNaN(v)?null:v;ls.set("dr.watch",watch);render();
-});
-let tmr;["#q","#maxp","#alerts"].forEach(s=>$(s).addEventListener("input",()=>{clearTimeout(tmr);tmr=setTimeout(()=>{ls.set("dr.alerts",$("#alerts").value);limit=60;render()},200)}));
-["#cat","#sort"].forEach(s=>$(s).addEventListener("change",()=>{limit=60;render()}));
-$("#more").addEventListener("click",()=>{limit+=60;render()});
-if(matchMedia("(min-width:641px)").matches)$("#morefilters").open=true;
-setInterval(renderStatus,1000);
-render();
+let qt;$("#q").addEventListener("input",e=>{clearTimeout(qt);qt=setTimeout(()=>{q=e.target.value.trim().toLowerCase();focus="";render()},140)});
+$("#q").addEventListener("keydown",e=>{if(e.key==="Enter")e.target.blur()});
+$("#sort").addEventListener("change",()=>{ls.set("dr.sort5",$("#sort").value);render()});
+$("#fresh").addEventListener("click",()=>load(true));
 
-async function load(){
-  nextCheck=Date.now()+30000;
+/* ---------- swipe rows ---------- */
+const AW=156;let sw=null,openRow=null,noClick=0;
+const rowOf=r=>r.querySelector(".row");
+function setX(r,x,anim){const w=rowOf(r);w.classList.toggle("drag",!anim);w.style.transform=x?`translate3d(${x}px,0,0)`:"";}
+function closeOpen(){if(openRow){setX(openRow,0,true);openRow=null}}
+list.addEventListener("pointerdown",e=>{
+  const r=e.target.closest(".r");if(!r||e.target.closest(".acts")||e.button>0)return;
+  if(openRow&&openRow!==r)closeOpen();
+  sw={r,x0:e.clientX,y0:e.clientY,base:openRow===r?-AW:0,lock:null,x:0,t:Date.now(),id:e.pointerId};
+});
+list.addEventListener("pointermove",e=>{
+  if(!sw||e.pointerId!==sw.id)return;
+  const dx=e.clientX-sw.x0,dy=e.clientY-sw.y0;
+  if(!sw.lock){if(Math.abs(dx)<8&&Math.abs(dy)<8)return;sw.lock=Math.abs(dx)>Math.abs(dy)*1.2?"x":"y";if(sw.lock==="x"){try{sw.r.setPointerCapture(e.pointerId)}catch(_){}}}
+  if(sw.lock!=="x")return;
+  let x=sw.base+dx;if(x>0)x=x/4;if(x<-AW)x=-AW+(x+AW)/3;
+  sw.x=x;setX(sw.r,x,false);
+});
+function endSwipe(e){
+  if(!sw||e.pointerId!==sw.id)return;const s=sw;sw=null;
+  if(s.lock!=="x")return;
+  noClick=Date.now()+350;
+  const v=(s.x-s.base)/Math.max(1,Date.now()-s.t);
+  if(s.x<-AW*1.55){setX(s.r,0,true);openRow=null;act(s.r.dataset.id,"w");return}
+  if(s.x<-AW/2||v<-.5){setX(s.r,-AW,true);openRow=s.r}else{setX(s.r,0,true);if(openRow===s.r)openRow=null}
+}
+list.addEventListener("pointerup",endSwipe);list.addEventListener("pointercancel",endSwipe);
+list.addEventListener("click",e=>{
+  if(Date.now()<noClick){e.preventDefault();e.stopPropagation();return}
+  const a=e.target.closest("[data-act]");
+  if(a){e.preventDefault();act(a.closest(".r").dataset.id,a.dataset.act);return}
+  if(openRow&&e.target.closest(".row")){e.preventDefault();closeOpen()}
+},true);
+document.addEventListener("pointerdown",e=>{if(openRow&&!e.target.closest(".r"))closeOpen()},true);
+addEventListener("scroll",()=>{if(openRow&&!sw)closeOpen()},{passive:true});
+document.addEventListener("error",e=>{const t=e.target;if(t&&t.tagName==="IMG"&&t.closest(".th")){t.closest(".th").classList.add("no");t.remove()}},true);
+
+function saveW(){ls.set("dr.watch",watch)}
+function act(id,a){
+  const d=byId.get(id);if(!d)return;
+  if(a==="w"){
+    if(!watch[id]){watch[id]={target:null,title:d.title,price:d.price};saveW();render(true)}
+    targetSheet(d);
+  }else if(a==="h"){
+    hidden[id]=1;ls.set("dr.hidden5",hidden);openRow=null;render(true);
+    toast("Hidden","Undo",()=>{delete hidden[id];ls.set("dr.hidden5",hidden);render(true)},5000);
+  }
+}
+
+/* ---------- sheet + toast ---------- */
+const sheet=$("#sheet"),bk=$("#bk"),sbody=$("#sbody");
+function openSheet(html){
+  sbody.innerHTML='<div class="grab"></div>'+html;sheet.hidden=false;bk.hidden=false;
+  requestAnimationFrame(()=>{sheet.classList.add("on");bk.classList.add("on")});
+}
+function closeSheet(){sheet.classList.remove("on");bk.classList.remove("on");setTimeout(()=>{sheet.hidden=true;bk.hidden=true},260);document.activeElement&&document.activeElement.blur&&document.activeElement.blur()}
+bk.addEventListener("click",closeSheet);
+if(window.visualViewport){const f=()=>{const v=visualViewport;sheet.style.setProperty("--kb",Math.max(0,innerHeight-v.height-v.offsetTop)+"px")};visualViewport.addEventListener("resize",f);visualViewport.addEventListener("scroll",f)}
+let sy0=null;sheet.addEventListener("touchstart",e=>{sy0=e.target.closest(".grab")?e.touches[0].clientY:null},{passive:true});
+sheet.addEventListener("touchend",e=>{if(sy0!=null&&e.changedTouches[0].clientY-sy0>40)closeSheet();sy0=null},{passive:true});
+function targetSheet(d){
+  const w=watch[d.id]||{},s=sym(d);
+  openSheet(`<h3>Watching</h3><p class="ttl">${esc(d.title)}</p><p>${d.price==null?"No price listed":"Now "+money(d.price,d.cur)}. Get flagged when it drops to your target.</p><label class="lbl" for="tgt">Alert me at or below</label><div class="fld"><span>${s}</span><input id="tgt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="${d.price?Math.round(d.price*.9):"price"}" value="${w.target==null?"":w.target}"></div><div class="bt"><button type="button" class="dng" id="tstop">Stop watching</button><button type="button" class="pri" id="tsave">Save</button></div>`);
+  $("#tsave").onclick=()=>{const v=parseFloat($("#tgt").value);if(!watch[d.id])watch[d.id]={title:d.title,price:d.price};watch[d.id].target=isNaN(v)?null:v;saveW();closeSheet();render(true)};
+  $("#tstop").onclick=()=>{delete watch[d.id];saveW();closeSheet();render(true)};
+  $("#tgt").addEventListener("keydown",e=>{if(e.key==="Enter")$("#tsave").click()});
+}
+let tt;
+function toast(msg,btn,fn,ms){
+  const t=$("#toast");t.innerHTML=esc(msg)+(btn?`<b>${esc(btn)}</b>`:"");t.hidden=false;t.onclick=()=>{t.hidden=true;clearTimeout(tt);fn&&fn()};
+  clearTimeout(tt);tt=setTimeout(()=>{t.hidden=true},ms||6000);
+}
+const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+$("#bell").addEventListener("click",()=>{
+  const nh=Object.keys(hidden).length,ok=meta?Object.values(meta.sources||{}).filter(v=>v==="ok").length+"/"+Object.keys(meta.sources||{}).length:"–";
+  openSheet(`<h3>Alerts &amp; settings</h3><p>Feeds live: ${ok}. Checked every 30 seconds.</p>
+  <div class="bt"><button type="button" class="pri" id="notif">Turn on notifications</button></div><div class="msg" id="nmsg"></div>
+  <label class="lbl" for="kw" style="margin-top:8px">Alert keywords</label><div class="fld txt"><input id="kw" placeholder="kiton, isaia, macbook pro m4" value="${esc(alertsStr)}" autocapitalize="none" autocorrect="off"></div>
+  <div class="bt"><button type="button" id="unhide"${nh?"":" disabled"}>Restore ${nh} hidden</button><button type="button" class="pri" id="sdone">Done</button></div>
+  <p class="fine">Gold is a real 90%+ markdown in your lanes or a computer price error: pick it up now. Green is one of the 20 best for you, in your size (S/M/L, suits 36–40, waist 27–29, shoes US 6.5–10). Out-of-size items are never highlighted. Watchlist, targets and hidden items are saved on this phone only.</p>`);
+  $("#notif").onclick=async()=>{
+    const m=$("#nmsg");
+    if(ios&&!standalone){m.textContent="On iPhone: tap Share, Add to Home Screen, then open Deal Radar from your Home Screen and tap this again.";return}
+    if(!("Notification" in window)){m.textContent="Notifications are not supported here.";return}
+    try{
+      if(await Notification.requestPermission()!=="granted"){m.textContent="Blocked. Allow notifications for Deal Radar in iOS Settings, then try again.";return}
+      const reg=await navigator.serviceWorker.ready;
+      const had=await reg.pushManager.getSubscription();
+      if(had){m.textContent="This phone is connected. You'll get a notification for every new golden find and green deal.";return}
+      const key=(await (await fetch("vapid_public.txt")).text()).trim();
+      const b64=x=>{const pad="=".repeat((4-x.length%4)%4),raw=atob((x+pad).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(raw,c=>c.charCodeAt(0))};
+      const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(key)});
+      m.innerHTML='Almost done: copy this code and paste it to Claude to connect this device.<textarea readonly rows="3" style="width:100%;margin-top:8px;font:12px var(--fm);border-radius:10px;padding:8px;background:var(--sf2,var(--sf));color:var(--ink);border:.5px solid var(--ln)"></textarea><button type="button" class="pri" style="margin-top:8px" id="pcopy">Copy code</button>';
+      m.querySelector("textarea").value=JSON.stringify(sub);
+      $("#pcopy").onclick=async()=>{try{await navigator.clipboard.writeText(JSON.stringify(sub));$("#pcopy").textContent="Copied"}catch(e){m.querySelector("textarea").select()}};
+    }catch(e){m.textContent="Couldn't turn on notifications: "+e.message}
+  };
+  $("#unhide").onclick=()=>{hidden={};ls.set("dr.hidden5",hidden);closeSheet();render(true)};
+  $("#sdone").onclick=()=>{alertsStr=$("#kw").value;ls.set("dr.alerts",alertsStr);closeSheet();render(true)};
+});
+
+/* Ask image CDNs for a phone-sized thumbnail (3x the 64/84px box) instead of the original. */
+function thumb(u,px){
   try{
-    if(meta){const m=await fetch("meta.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null);
-      if(m&&m.updatedAt===meta.updatedAt){renderStatus();return}}
+    const url=new URL(u,location.href);
+    if(url.hostname==="cdn.shopify.com"||url.pathname.startsWith("/cdn/shop/")){url.searchParams.set("width",px);return url.href}
+    if(/dlnws\.com$/.test(url.hostname)){url.searchParams.set("w",px);url.searchParams.set("h",px);return url.href}
+    if(/storeimages\.cdn-apple\.com$/.test(url.hostname)){url.searchParams.set("wid",px);url.searchParams.set("hei",px);return url.href}
+    return u;
+  }catch(e){return u}
+}
+
+/* ---------- data ---------- */
+const norm=s=>/^woot/i.test(s)?"Woot":/^costco/i.test(s)?"Costco":/^dicks/i.test(s)?"Dick's":s;
+function ingest(data){
+  const seen=new Set();
+  return (data.deals||[]).filter(d=>d&&d.id&&!seen.has(d.id)&&seen.add(d.id)).map(d=>{d.store=norm(d.store||"Online");d._s=((d.title||"")+" "+(d.brand||"")+" "+d.store).toLowerCase();d.title=d.title||"Untitled";return d});
+}
+function apply(next){deals=next;byId=new Map(next.map(d=>[d.id,d]));}
+async function load(force){
+  try{
+    if(meta&&!force){
+      const m=await fetch("meta.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null);
+      if(m&&m.updatedAt===meta.updatedAt){renderFresh();return}
+    }
     const r=await fetch("deals.json?t="+Date.now(),{cache:"no-store"});
     if(!r.ok)throw new Error(r.status);
     const data=await r.json();
-    if(meta&&data.updatedAt===meta.updatedAt){renderStatus();return}
-    const seen=new Set();
-    const next=(data.deals||[]).filter(d=>d&&d.id&&!seen.has(d.id)&&seen.add(d.id)).map(d=>({...d,store:normStore(d.store||"Online")}));
-    meta=data;renderStatus();
-    if(!knownIds){knownIds=new Set(next.map(d=>d.id));deals=next;renderChips();render();return}
+    if(meta&&data.updatedAt===meta.updatedAt){renderFresh();return}
+    const next=ingest(data);meta=data;
+    if(!knownIds){knownIds=new Set(next.map(d=>d.id));apply(next);render();return}
     const added=next.filter(d=>!knownIds.has(d.id));next.forEach(d=>knownIds.add(d.id));added.forEach(d=>freshIds.add(d.id));
-    if(added.length&&window.scrollY>300){pending=next;const b=added.filter(isBest).length,t=$("#toast");
-      t.textContent=`${added.length} new deal${added.length>1?"s":""}${b?` · ${b} green`:""} ↑`;t.hidden=false;return}
-    if(document.activeElement?.matches?.("[data-target],#q,#maxp,#alerts")&&document.activeElement.dataset.target){pending=next;return}
-    deals=next;renderChips();render();setTimeout(()=>{added.forEach(d=>freshIds.delete(d.id))},10*60*1000);
-  }catch(e){if(!deals.length){meta=false;render()}$("#sub").textContent="Can't reach the deal feed. Retrying…"}
+    if(added.length&&scrollY>300){
+      pending=next;renderFresh();
+      const g=added.filter(d=>d.green||d.golden).length;
+      toast(added.length+" new"+(g?" · "+g+" top":""),"Show",()=>{if(pending){apply(pending);pending=null}render();scrollTo({top:0,behavior:"smooth"})},12000);return;
+    }
+    apply(next);render(true);
+    setTimeout(()=>added.forEach(d=>freshIds.delete(d.id)),6e5);
+  }catch(e){if(!deals.length){meta=false;render()}renderFresh()}
 }
-$("#toast").addEventListener("click",()=>{if(pending){deals=pending;pending=null}$("#toast").hidden=true;renderChips();render();window.scrollTo({top:0,behavior:"smooth"})});
-
-// Installable app + push notifications (sent by the GitHub job for new green deals).
-const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
-const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
-let swReg=null;
-if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").then(r=>{swReg=r;refreshPushButton()}).catch(()=>{});
-const b64=s=>{const p="=".repeat((4-s.length%4)%4),raw=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(raw,c=>c.charCodeAt(0))};
-async function refreshPushButton(){
-  const btn=$("#notify");btn.hidden=false;
-  if(ios&&!standalone){btn.textContent="Get notifications: add to Home Screen first";return}
-  if(!swReg||!("PushManager" in window)){btn.textContent="Notifications not supported here";btn.disabled=true;return}
-  const sub=await swReg.pushManager.getSubscription();
-  btn.textContent=sub?"Notifications on · show code":"Turn on phone notifications";
-}
-$("#notify").addEventListener("click",async()=>{
-  if(ios&&!standalone){$("#pushcode").hidden=false;$("#pushtext").hidden=true;$("#pushcopy").hidden=true;
-    $("#pushmsg").textContent="On iPhone: tap Share, then Add to Home Screen. Open Deal Radar from your Home Screen and tap this button again.";return}
-  try{
-    if(await Notification.requestPermission()!=="granted"){$("#pushcode").hidden=false;$("#pushmsg").textContent="Notifications are blocked. Allow them for this site in your browser settings, then try again.";return}
-    const key=(await (await fetch("vapid_public.txt")).text()).trim();
-    const sub=(await swReg.pushManager.getSubscription())||await swReg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(key)});
-    $("#pushcode").hidden=false;$("#pushtext").hidden=false;$("#pushcopy").hidden=false;
-    $("#pushtext").value=JSON.stringify(sub);
-    $("#pushmsg").textContent="Almost done: copy this code and paste it to Claude to connect this device. You'll then get a notification for each new green deal.";
-    refreshPushButton();
-  }catch(e){$("#pushcode").hidden=false;$("#pushmsg").textContent="Couldn't turn on notifications: "+e.message}
-});
-$("#pushcopy").addEventListener("click",async()=>{
-  try{await navigator.clipboard.writeText($("#pushtext").value);$("#pushcopy").textContent="Copied"}
-  catch{$("#pushtext").select();$("#pushcopy").textContent="Selected, copy it"}
-});
-load();setInterval(load,30000);
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+setInterval(renderFresh,20000);
+render();load();setInterval(load,30000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)load()});
 </script>
 </body>
