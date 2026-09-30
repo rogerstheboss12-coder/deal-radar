@@ -92,6 +92,20 @@ CORE = [
     ("shopify", "bushtukah", "https://bushtukah.com/collections/sale/products.json?limit=250"),
     ("shopify", "bd-outlet", "https://blackdiamondequipment.com/collections/mens-outlet/products.json?limit=250"),
     ("shopify", "plug", "https://plug.tech/collections/macbooks/products.json?limit=250"),
+    ("shopify", "biffi", "https://www.biffi.com/collections/uomo-abbigliamento-saldi/products.json?limit=250"),
+    ("shopify", "doppiaa", "https://doppiaa.com/collections/winter-sales/products.json?limit=250"),
+    ("shopify", "aspesi", "https://www.aspesi.com/collections/saldi-uomo/products.json?limit=250"),
+    ("shopify", "gloverall", "https://www.gloverall.com/collections/mens-surplus/products.json?limit=250"),
+    ("shopify", "mackage", "https://www.mackage.com/collections/mens-outerwear/products.json?limit=250"),
+    ("shopify", "btp", "https://www.behindthepines.eu/collections/sale/products.json?limit=250"),
+    ("shopify", "gearhead", "https://gearheadoutfitters.com/products.json?limit=250"),
+    ("shopify", "climbon", "https://climbonequipment.com/collections/apparel-deals/products.json?limit=250"),
+    ("shopify", "platte", "https://wyomingflyfishing.com/collections/patagonia-mens-sale/products.json?limit=250"),
+    ("shopify", "tekreplay", "https://tekreplay.com/collections/all-computers/products.json?limit=250"),
+    ("shopify", "certrefurb", "https://certifiedrefurbished.com/collections/refurbished-macbooks/products.json?limit=250"),
+    ("shopify", "minisforum", "https://www.minisforum.com/products.json?limit=250"),
+    ("shopify", "gmktec", "https://www.gmktec.com/collections/all/products.json?limit=250"),
+    ("shopify", "beelink", "https://www.bee-link.com/collections/all-pc/products.json?limit=250"),
     ("dn", "dn-hot", "https://www.dealnews.com/?rss=1&sort=hotness"),
     ("dn", "dn-new", "https://www.dealnews.com/?rss=1"),
     ("dn", "dn-computers", "https://www.dealnews.com/c39/Computers/?rss=1&sort=time"),
@@ -158,7 +172,7 @@ CREATIVE = re.compile(r"macbook|mac mini|imac|mac studio", re.I)
 DESKTOP = re.compile(r"mac mini|mac studio|imac|mini pc|\bnuc\b|beelink|minisforum|acemagic|acemagician|gmktec|bosgame|kamrui|desktop|gaming pc|tower\b", re.I)
 MENS_FORMAL = re.compile(r"\bsuits?\b|blazer|sport ?coat|dress shirt|\bties?\b|oxford shoe|loafer|brogue|cashmere|tailor|menswear|luxury", re.I)
 TAILORED_PIECE = re.compile(r"blazer|sport ?coat|suit\b|jacket|overcoat|\bcoat\b|trouser|pleated|\bties?\b|cashmere|loafer|oxford|derby|brogue|\bboots?\b|chelsea|monk strap|overshirt", re.I)
-ACCESSORY = re.compile(r"\bhub\b|dock|\bcase\b|charger|sleeve|\bstand\b|adapter|cable|keyboard|mouse|screen protector|backpack|bag\b|skin\b|cooling pad", re.I)
+ACCESSORY = re.compile(r"\bhub\b|dock|upgrade kit|\bcase\b|charger|sleeve|\bstand\b|adapter|cable|keyboard|mouse|screen protector|backpack|bag\b|skin\b|cooling pad", re.I)
 # Enough CPU/RAM for real video editing: Apple silicon, or a fast x86 chip with 16GB+.
 # Video-capable: Apple silicon Pro/Max or 16GB+, or a modern x86 chip/GPU with 16GB+.
 APPLE_OK = re.compile(r"\bm[1-6]\s?(pro|max|ultra)\b|\bm[1-6]\b(?! ?\.2).*\b(16|24|32)\s?gb", re.I)
@@ -543,13 +557,31 @@ SHOPIFY_STORES.update({
     "bushtukah": ("Bushtukah", "https://bushtukah.com", "CAD", None),
     "bd-outlet": ("Black Diamond", "https://blackdiamondequipment.com", "USD", None),
     "plug": ("Plug", "https://plug.tech", "USD", None),
+    "biffi": ("Biffi", "https://www.biffi.com", "EUR",
+              r"tagliatore|barena|boglioli|lardini|caruso|belvest|isaia|kiton|loro piana|cucinelli|zegna|drumohr|smedley|incotex|herno|church|tod'?s|santoni|doucal|barba|finamore|borrelli|cruciani|de petrillo|lbm|l\.b\.m|massimo alba|aspesi|altea|fedeli|gran sasso|brioni|canali"),
+    "doppiaa": ("Doppiaa", "https://doppiaa.com", "EUR", None),
+    "aspesi": ("Aspesi", "https://www.aspesi.com", "EUR", None),
+    "gloverall": ("Gloverall", "https://www.gloverall.com", "GBP", None),
+    "mackage": ("Mackage", "https://www.mackage.com", "USD", None),
+    "btp": ("Behind The Pines", "https://www.behindthepines.eu", "EUR", None),
+    "gearhead": ("Gearhead Outfitters", "https://gearheadoutfitters.com", "USD", None),
+    "climbon": ("Climb On", "https://climbonequipment.com", "USD", None),
+    "platte": ("Platte River Fly Shop", "https://wyomingflyfishing.com", "USD", None),
+    "tekreplay": ("TekReplay", "https://tekreplay.com", "USD", None),
+    "certrefurb": ("CertifiedRefurbished", "https://certifiedrefurbished.com", "USD", None),
+    "minisforum": ("Minisforum", "https://www.minisforum.com", "USD", None),
+    "gmktec": ("GMKtec", "https://www.gmktec.com", "USD", None),
+    "beelink": ("Beelink", "https://www.bee-link.com", "USD", None),
 })
 OUTDOOR_SHOPS = {"evo-patagonia", "evo-tnf", "evo-mh", "cotopaxi", "filson", "or", "sb-patagonia", "sb-tnf", "tiso",
-                 "mtnsports", "wildbounds", "bushtukah", "bd-outlet"}
-MULTI_BRAND_OUTDOOR = {"tiso", "mtnsports", "wildbounds", "bushtukah"}                 # only named premium brands count as "brand" here
-REFURB_SHOPS = {"techable", "refurbio", "sysliq", "plug"}
+                 "mtnsports", "wildbounds", "bushtukah", "bd-outlet",
+                 "gloverall", "mackage", "btp", "gearhead", "climbon", "platte"}
+MULTI_BRAND_OUTDOOR = {"tiso", "mtnsports", "wildbounds", "bushtukah", "btp", "gearhead", "climbon"}                 # only named premium brands count as "brand" here
+REFURB_SHOPS = {"techable", "refurbio", "sysliq", "plug", "tekreplay", "certrefurb"}
+PC_SHOPS = {"minisforum", "gmktec", "beelink"}                           # new mini PCs, maker stores
 PAGES = {"herring": 3, "tiedeals": 4, "tiso": 3, "sanpetuna": 2, "sb-patagonia": 2, "sb-tnf": 2,
-         "techable": 2, "sysliq": 2, "italist-bc": 2, "mtnsports": 3, "wildbounds": 2, "jondral": 3}
+         "techable": 2, "sysliq": 2, "italist-bc": 2, "mtnsports": 3, "wildbounds": 2, "jondral": 3,
+         "biffi": 2, "btp": 4, "gearhead": 4}
 PREOWNED = re.compile(r"pre-?owned|\bused\b|vintage|\bworn\b|second-?hand|consign", re.I)
 
 
@@ -564,6 +596,7 @@ ALPHA_ANY = re.compile(r"^(\d?x{0,4}[sl]|m|xs|xxs|\d?xl|x+l|small|medium|large|s
 
 SHOE_SHOPS = {"herring", "osweeney"}
 US_SIZED = {"andover", "mrderk", "boyds"}   # North American shops: suit sizes are US chest
+CHEST_SIZED = {"mackage", "gloverall"}     # outerwear labeled by chest inches: every number is chest
 WAIST_OK = (27, 29)          # inches
 INSEAM_OK = (27.5, 29)       # inches; shorts ignore inseam
 EU_WAIST_OK = (42, 44)       # Italian/EU trouser sizes (44 = 28-29")
@@ -626,6 +659,8 @@ def size_fits(size, title, store_tag=""):
         return 6.5 <= n <= 10          # bare small numbers at US stores are US sizes
     if SHIRT_WORDS.search(title) and 13 <= n <= 19:
         return 14.5 <= n <= 16.5       # collar sizes ~ S-L
+    if store_tag in CHEST_SIZED and 34 <= n <= 54:
+        return n in (36, 38, 40)
     if store_tag in US_SIZED or re.search(r"\d{2}\s?[RSL]\b", raw):
         if 34 <= n <= 54 and (SUIT_WORDS.search(title) or re.search(r"\d{2}\s?[RSL]\b", raw)):
             return n in (36, 38, 40)   # US chest sizes: 36R/38R/40R
@@ -663,11 +698,13 @@ def parse_shopify(tag, raw):
     out = []
     for p in json.loads(raw).get("products", []):
         live = [v for v in p.get("variants", []) if v.get("available")]
-        prices = [to_num(v.get("price")) for v in live if to_num(v.get("price"))]
-        compares = [to_num(v.get("compare_at_price")) for v in live if to_num(v.get("compare_at_price"))]
-        if not prices or not compares:
+        # Compare each variant with its own original price: mixing the cheapest variant with
+        # the priciest variant's original (a barebone vs a 64GB build) fakes huge discounts.
+        pairs = [(to_num(v.get("price")), to_num(v.get("compare_at_price"))) for v in live]
+        pairs = [(pr, ca) for pr, ca in pairs if pr and ca and ca > pr]
+        if not pairs:
             continue
-        price, was = min(prices), max(compares)
+        price, was = min(pairs, key=lambda x: (x[0], -x[1]))
         if was <= price or price > was * 0.7:     # keep 30%+ markdowns only
             continue
         tags = p.get("tags") or []
@@ -685,7 +722,7 @@ def parse_shopify(tag, raw):
             fit, fit_sizes = title_size_fit(title)
         out.append(base(f"sh{tag}{p['id']}", store, tag, title, f"{host}/products/{p['handle']}",
                         store, price, was, None, None,
-                        img, vendor=vendor, apparel=tag not in OUTDOOR_SHOPS | REFURB_SHOPS,
+                        img, vendor=vendor, apparel=tag not in OUTDOOR_SHOPS | REFURB_SHOPS | PC_SHOPS,
                         outdoor=tag in OUTDOOR_SHOPS, multi=tag in MULTI_BRAND_OUTDOOR,
                         refurb_shop=tag in REFURB_SHOPS, cur=cur,
                         fine=not fine or bool(re.search(fine, vendor, re.I)),
@@ -838,7 +875,7 @@ def mark_green(deals):
 SPEC_FLOORS = [
     (r"rtx\s?(4090|5090)", 1800), (r"rtx\s?(4080|5080)", 1200), (r"rtx\s?(4070|5070)", 800),
     (r"rtx\s?(4060|5060|3070|3080)", 600), (r"rtx\s?(4050|5050|3060)", 500),
-    (r"\bm[1-6]\s?(max|ultra)\b", 1500), (r"\bm[1-6]\s?pro\b", 900),
+    (r"(mac|apple).*\bm[1-6]\s?(max|ultra)\b", 1500), (r"(mac|apple).*\bm[1-6]\s?pro\b", 900),
     (r"macbook pro", 900), (r"macbook air|mac mini|imac", 450),
     (r"alienware|razer blade|rog (strix|zephyrus)|legion (pro|7|9)|msi (raider|stealth|titan|vector|crosshair|katana|sword|pulse)|omen (16|17|max)|predator helios", 700),
     (r"gaming (laptop|desktop|pc)", 450), (r"core ultra [79]|ryzen (ai )?9|\bi9\b", 600),
@@ -870,6 +907,51 @@ def mark_golden(deals):
         if golden_candidate(d):
             d["golden"] = True
             d["green"] = True
+
+
+FEED_SHARE = 700   # slots for posts from deal sites and blogs; shops share the rest
+
+
+def keep_rank(d):
+    """How much a shop item deserves one of the limited slots."""
+    f = set(d.get("flags") or [])
+    r = d.get("pct") or 0
+    if {"tailor", "brand", "pc"} & f:
+        r += 40
+    if "creative" in f:
+        r += 20
+    if d.get("fit") is True:
+        r += 10
+    if {"hide", "womens", "nofit", "roundup"} & f:
+        r -= 200
+    return r
+
+
+def select_deals(deals):
+    """Pick what fits in MAX_DEALS. Shop items have no post date, so ranking everything by
+    'first seen' let big shop catalogs push out every deal-site post. Instead: green and gold
+    always stay, deal-site posts get their share by recency, and shops take turns with their
+    best items first."""
+    mark_green(deals)
+    mark_golden(deals)
+    newest = lambda d: d.get("posted") or d["seen"]
+    must = [d for d in deals if d.get("green") or d.get("golden")]
+    rest = [d for d in deals if not (d.get("green") or d.get("golden"))]
+    feed = sorted((d for d in rest if not d["id"].startswith("sh")), key=newest, reverse=True)
+    keep = must + feed[:FEED_SHARE]
+    shops = {}
+    for d in rest:
+        if d["id"].startswith("sh"):
+            shops.setdefault(re.match(r"sh(\D+)", d["id"]).group(1), []).append(d)
+    turns = []
+    for items in shops.values():
+        items.sort(key=keep_rank, reverse=True)
+        turns += [((keep_rank(d) < 0), i, -keep_rank(d), d["id"], d) for i, d in enumerate(items)]
+    turns.sort(key=lambda x: x[:4])
+    keep += [x[4] for x in turns[:max(0, MAX_DEALS - len(keep))]]
+    if len(keep) < MAX_DEALS:
+        keep += feed[FEED_SHARE:FEED_SHARE + MAX_DEALS - len(keep)]
+    return sorted(keep, key=newest, reverse=True)
 
 
 def is_green(d):
@@ -997,9 +1079,7 @@ def main():
     if not STATE_URL:
         json.dump({"deals": known}, open(STATE, "w"))
 
-    ranked = sorted(known.values(), key=lambda d: (d.get("posted") or d["seen"]), reverse=True)[:MAX_DEALS]
-    mark_green(ranked)
-    mark_golden(ranked)
+    ranked = select_deals(list(known.values()))
     os.makedirs(SITE, exist_ok=True)
     out = os.path.join(SITE, "deals.json")
     for d in ranked:   # keep the file lean
