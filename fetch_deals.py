@@ -415,6 +415,8 @@ def main():
     cutoff = iso(t - timedelta(days=KEEP_DAYS))
     known = {k: v for k, v in known.items()
              if v.get("last", "") >= cutoff and (not v.get("posted") or v["posted"] >= too_old)}
+    for d in known.values():   # deals carried over from earlier runs get current flags too
+        d["flags"] = flags(d)
     if not STATE_URL:
         json.dump({"deals": known}, open(STATE, "w"))
 
