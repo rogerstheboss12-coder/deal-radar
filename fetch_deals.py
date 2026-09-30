@@ -741,7 +741,7 @@ def flags(d):
         if floor and price is not None and 0 < price <= 0.4 * floor:
             d["spec_floor"] = floor
             f.append("anomaly")
-    if re.search(r"\bladies\b|\bwomen'?s\b|\bwomens\b|\bw's\b|\bkids'?\b|\bgirls'?\b|\bboys'?\b", t, re.I):
+    if re.search(r"\bladies\b|\bwomen'?s\b|\bwomens\b|\bw's\b|\bkids'?\b|\bgirls'?\b|\bboys'?\b|\byouth\b|\bjunior\b|\btoddler|\bbaby\b|\binfant|\blittle kids\b|\bbig kids\b", t, re.I):
         f.append("womens")
     if HIDE.search(t) or d.get("cat") == "Toys & Kids":
         f.append("hide")
