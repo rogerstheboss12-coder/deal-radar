@@ -637,6 +637,26 @@ def mark_green(deals):
         n += 1
 
 
+def golden_candidate(d):
+    """Pick-it-up-now tier: a real 90%+ markdown on a men's item worth $100+ at full price,
+    in the shopper's lanes; or a reported price error on a computer with a known price."""
+    f = set(d.get("flags") or [])
+    if {"roundup", "hide", "womens"} & f or d.get("price") is None:
+        return False
+    in_lane = bool({"pc", "tailor", "brand"} & f)
+    real_90 = (d.get("pct") or 0) >= 90 and (d.get("was") or 0) >= 100
+    pc_error = "pc" in f and "anomaly" in f and bool(ANOMALY_WORDS.search(d["title"])) and d["price"] > 0
+    return in_lane and (real_90 or pc_error)
+
+
+def mark_golden(deals):
+    for d in deals:
+        d.pop("golden", None)
+        if golden_candidate(d):
+            d["golden"] = True
+            d["green"] = True
+
+
 def is_green(d):
     return bool(d.get("green"))
 
@@ -647,7 +667,7 @@ def _old_is_green(d):
             and not {"roundup", "hide", "womens"} & f and bool({"pc", "tailor", "brand"} & f))
 
 
-def send_pushes(deals):
+def send_pushes(deals, golden=False):
     """Web Push to every subscribed device. Needs VAPID_PRIVATE_KEY and PUSH_SUBSCRIPTIONS
     (a JSON list of browser subscriptions) in the environment; silently skips otherwise."""
     key, subs = os.environ.get("VAPID_PRIVATE_KEY"), os.environ.get("PUSH_SUBSCRIPTIONS")
@@ -663,7 +683,9 @@ def send_pushes(deals):
     subs = json.loads(subs)
     for sub in subs if isinstance(subs, list) else [subs]:
         for d in deals[:5]:
-            msg = {"title": "Deal Radar is connected" if d["id"] == "test" else f"{'$%g' % d['price']} · {d['pct']}% off · {d['store']}",
+            price = {"EUR": "€", "GBP": "£"}.get(d.get("cur"), "$") + f"{d['price']:,.2f}".replace(".00", "")
+            head = f"{price} · {d.get('pct') or '?'}% off · {d['store']}"
+            msg = {"title": "Deal Radar is connected" if d["id"] == "test" else ("GOLDEN FIND · " + head if golden else head),
                    "body": d["title"][:140], "url": d["url"], "icon": d.get("img"), "tag": d["id"]}
             try:
                 webpush(sub, json.dumps(msg), vapid_private_key=vapid,
@@ -685,6 +707,7 @@ def main():
     elif os.path.exists(STATE):
         known = json.load(open(STATE))["deals"]
     was_green = {k for k, v in known.items() if is_green(v)}
+    was_golden = {k for k, v in known.items() if v.get("golden")}
     known_prev_ranked = [dict(v) for v in known.values()]
 
     group = (t.minute // 5) % 3 if known else None   # first run fetches every search
@@ -764,6 +787,7 @@ def main():
 
     ranked = sorted(known.values(), key=lambda d: (d.get("posted") or d["seen"]), reverse=True)[:MAX_DEALS]
     mark_green(ranked)
+    mark_golden(ranked)
     os.makedirs(SITE, exist_ok=True)
     out = os.path.join(SITE, "deals.json")
     for d in ranked:   # keep the file lean
@@ -789,7 +813,9 @@ def main():
             fh.write(f"changed={'true' if changed else 'false'}\n")
     print("changed" if changed else "no changes; skipping deploy")
     if known and STATE_URL:   # only from the live job, never on the very first run
-        new_green = [d for d in ranked if is_green(d) and d["id"] not in was_green]
+        # Golden finds always notify, first and with their own title.
+        send_pushes([d for d in ranked if d.get("golden") and d["id"] not in was_golden][:3], golden=True)
+        new_green = [d for d in ranked if is_green(d) and not d.get("golden") and d["id"] not in was_green]
         # A burst means a new source was just added, not a wave of new deals: stay quiet.
         if len(new_green) <= 15:
             send_pushes(new_green)

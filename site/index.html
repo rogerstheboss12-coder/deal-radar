@@ -20,6 +20,7 @@
    your best deals turn signal-green and say why. */
 :root{
   --bg:#edf0ea; --surface:#fafbf8; --ink:#0f1d17; --muted:#5e6b64; --line:#d5dbd3; --chip:#e2e7df;
+  --gold:#d4a017; --gold-ink:#8a6200;
   --tile:#f1f3ee; --best:#17a35a; --best-tile:#d3efdd; --best-ink:#0b5a31; --cut:#e4572e; --warn:#c98a12;
   --f-display:"Bricolage Grotesque","Avenir Next Condensed","Arial Narrow",sans-serif;
   --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -28,10 +29,10 @@
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0c1210; --surface:#131b17; --ink:#e7efe9; --muted:#93a39a; --line:#25302a; --chip:#1d2722;
-  --tile:#e4e9e3; --best:#3ddc84; --best-tile:#b9e8cb; --best-ink:#7ff0b0; --cut:#ff7a50; --warn:#f0b43a; color-scheme:dark}}
+  --tile:#e4e9e3; --best:#3ddc84; --best-tile:#b9e8cb; --best-ink:#7ff0b0; --cut:#ff7a50; --warn:#f0b43a; --gold:#f2c230; --gold-ink:#f7d86a; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0c1210; --surface:#131b17; --ink:#e7efe9; --muted:#93a39a; --line:#25302a; --chip:#1d2722;
-  --tile:#e4e9e3; --best:#3ddc84; --best-tile:#b9e8cb; --best-ink:#7ff0b0; --cut:#ff7a50; --warn:#f0b43a; color-scheme:dark}
+  --tile:#e4e9e3; --best:#3ddc84; --best-tile:#b9e8cb; --best-ink:#7ff0b0; --cut:#ff7a50; --warn:#f0b43a; --gold:#f2c230; --gold-ink:#f7d86a; color-scheme:dark}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);padding-inline:16px;padding-block:0 56px}
@@ -132,6 +133,14 @@ svg.spark{display:block}
 .deal.best .tile{background:radial-gradient(120% 90% at 50% 20%,color-mix(in srgb,var(--best-tile) 70%,#fff),var(--best-tile))}
 .deal.best .tile::before{content:"";position:absolute;inset:0;border-bottom:3px solid var(--best);pointer-events:none}
 .deal.hit{border-color:#f2c230;box-shadow:0 0 0 2px #f2c230}
+/* Golden find: pick it up now */
+.deal.gold{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold),0 10px 30px color-mix(in srgb,var(--gold) 35%,transparent)}
+.deal.gold .tile{background:radial-gradient(120% 90% at 50% 20%,#fff6d6,#f3d77a)}
+.deal.gold .tile::before{content:"";position:absolute;inset:0;border-bottom:3px solid var(--gold);pointer-events:none}
+.goldwhy{color:var(--gold-ink)}
+.goldbar{margin-top:18px;border:2px solid var(--gold);border-radius:16px;padding:14px;background:color-mix(in srgb,var(--gold) 12%,var(--surface))}
+.goldbar h2{font:800 22px/1.1 var(--f-display);margin:0 0 12px;color:var(--gold-ink)}
+.goldbar h2 span{font:500 12px var(--f-mono);color:var(--muted)}
 .deal.stale{opacity:.6}
 .deal.stale .meta::after{content:"no longer in feeds";color:var(--warn)}
 
@@ -194,6 +203,10 @@ footer{margin-top:36px;font-size:12px;color:var(--muted);max-width:75ch}
   </div>
 
   <p class="help" id="help"></p>
+  <section class="goldbar" id="goldbar" hidden>
+    <h2>Golden finds: pick these up now <span id="gold-n"></span></h2>
+    <div class="grid" id="gold-grid"></div>
+  </section>
   <section class="spot" id="spot" hidden>
     <h2>Best for you right now <span id="spot-n"></span></h2>
     <div class="grid" id="spot-grid"></div>
@@ -203,7 +216,7 @@ footer{margin-top:36px;font-size:12px;color:var(--muted);max-width:75ch}
   <button class="more" id="more" hidden>Show more</button>
   <button class="toast" id="toast" hidden></button>
 
-  <footer>Green cards are the 20 absolute best for you: real markdowns of 50% or more on men's items of $40+ (never women's) in PCs, tailoring or outdoor brands, ranked by % off and dollars saved, at most 4 per store. Faded cards have dropped out of the source feeds. Deals come from public feeds (Slickdeals, DealNews, 9to5Toys, MacRumors, Windows Central, Gear Patrol, Put This On, Stitchdown, Dappered, No Man Walks Alone, Skoaktiebolaget, camelcamelcamel and Reddit deal communities) and each links to the original post. Software keys, subscriptions, kids, toys and pet deals are hidden. Retailers often cancel price-mistake orders, so check fast. Watchlist, targets and alerts are saved in this browser only.</footer>
+  <footer>Gold cards are Golden Finds: a real 90%+ markdown on a men's item worth $100+ at full price in your lanes, or a reported price error on a computer. They always send a notification. Green cards are the 20 absolute best for you: real markdowns of 50% or more on men's items of $40+ (never women's) in PCs, tailoring or outdoor brands, ranked by % off and dollars saved, at most 4 per store. Faded cards have dropped out of the source feeds. Deals come from public feeds (Slickdeals, DealNews, 9to5Toys, MacRumors, Windows Central, Gear Patrol, Put This On, Stitchdown, Dappered, No Man Walks Alone, Skoaktiebolaget, camelcamelcamel and Reddit deal communities) and each links to the original post. Software keys, subscriptions, kids, toys and pet deals are hidden. Retailers often cancel price-mistake orders, so check fast. Watchlist, targets and alerts are saved in this browser only.</footer>
 </div>
 
 <script>
@@ -252,7 +265,8 @@ function personal(d,kw){
   const t=d.title.toLowerCase(),alert=kw.some(k=>k.split(/\s+/).every(w=>t.includes(w)));
   if(alert){s+=30;why.push("Matches your alert")}
   if(hitTarget(d)){s+=40;why.push("Hit your target")}
-  return{s:s+(d.green?100:0),why:[...new Set(why)].slice(0,3),best:!!d.green};
+  if(d.golden)why.unshift(has(d,"anomaly")&&(d.pct||0)<90?"Possible price error":"Golden find");
+  return{s:s+(d.green?100:0)+(d.golden?500:0),why:[...new Set(why)].slice(0,3),best:!!d.green,gold:!!d.golden};
 }
 const scoreAll=()=>{const kw=keywords();deals.forEach(d=>{d._p=personal(d,kw)})};
 const isBest=d=>!!d._p?.best;
@@ -298,14 +312,14 @@ function spark(h){
 function card(d){
   const p=d._p||{s:0,why:[],best:false},best=p.best,w=watch[d.id],hit=hitTarget(d),stale=meta&&d.last&&d.last<meta.updatedAt;
   const fl=[has(d,"anomaly")&&'<span class="a">ANOMALY</span>',has(d,"free")&&'<span>FREE</span>',d.clr&&'<span class="c">CLEARANCE</span>',has(d,"refurb")&&'<span>REFURB</span>'].filter(Boolean).join("");
-  return `<article class="deal${best?" best":""}${hit?" hit":""}${freshIds.has(d.id)?" fresh":""}${stale?" stale":""}">
+  return `<article class="deal${p.gold?" gold":best?" best":""}${hit?" hit":""}${freshIds.has(d.id)?" fresh":""}${stale?" stale":""}">
     <div class="tile${d.img?"":" noimg"}" data-store="${esc(d.store)}">${d.img?`<img src="${esc(d.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()">`:""}
       <div class="store" style="background:${STORE_COLORS[d.store]||"#3c4a43"}">${esc(d.store)}</div>
       ${fl?`<div class="flags">${fl}</div>`:""}
     </div>
     <button class="star" data-watch="${esc(d.id)}" aria-pressed="${!!w}" aria-label="${w?"Remove from":"Add to"} watchlist">${w?"★":"☆"}</button>
     <div class="body">
-      ${best?`<div class="why">● ${esc(p.why.join(" · "))}</div>`:""}
+      ${p.gold?`<div class="why goldwhy">★ GOLDEN FIND · ${esc(p.why.slice(1).join(" · "))}</div>`:best?`<div class="why">● ${esc(p.why.join(" · "))}</div>`:""}
       <div class="prow"><span class="price${d.price==null?" na":""}">${d.price==null?"See deal":money(d.price,d.cur)}</span>${d.was?`<span class="was">${money(d.was,d.cur)}</span>`:""}${d.pct?`<span class="pct">−${d.pct}%</span>`:""}${spark(d.hist)}</div>
       <a class="t" href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.title)}</a>
       <div class="meta">
@@ -335,6 +349,10 @@ function render(){
     list.innerHTML=`<div class="empty"><h3>${meta===false?"Can't reach the deal feed":"Scanning…"}</h3>${meta===false?"Retrying every 30 seconds.":""}</div>`;return;
   }
   let r=sorted(filtered());
+  const golds=deals.filter(d=>d.golden&&!has(d,"hide")).sort((a,b)=>(b.pct||0)-(a.pct||0));
+  $("#goldbar").hidden=!golds.length;
+  if(golds.length){$("#gold-grid").innerHTML=golds.map(card).join("");$("#gold-n").textContent=golds.length+(golds.length>1?" finds":" find");
+    const gid=new Set(golds.map(d=>d.id));r=r.filter(d=>!gid.has(d.id))}
   const bestAll=deals.filter(d=>!has(d,"hide")&&isBest(d));$("#r-best").textContent=bestAll.length;
   const spotItems=tab==="picks"&&$("#sort").value==="me"?r.filter(isBest).slice(0,4):[];
   spot.hidden=!spotItems.length;$("#gridhead").hidden=!spotItems.length;
