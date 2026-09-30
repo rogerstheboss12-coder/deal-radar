@@ -203,7 +203,7 @@ footer{margin-top:36px;font-size:12px;color:var(--muted);max-width:75ch}
   <button class="more" id="more" hidden>Show more</button>
   <button class="toast" id="toast" hidden></button>
 
-  <footer>Green cards are the absolute best for you: a real markdown of 50% or more (known original price, a single item rather than a sale roundup) on PCs, tailoring or outdoor brands, a price error, or an alert match. Faded cards have dropped out of the source feeds. Deals come from public feeds (Slickdeals, DealNews, 9to5Toys, MacRumors, Windows Central, Gear Patrol, Put This On, Stitchdown, Dappered, No Man Walks Alone, Skoaktiebolaget, camelcamelcamel and Reddit deal communities) and each links to the original post. Software keys, subscriptions, kids, toys and pet deals are hidden. Retailers often cancel price-mistake orders, so check fast. Watchlist, targets and alerts are saved in this browser only.</footer>
+  <footer>Green cards are the 20 absolute best for you: real markdowns of 50% or more on men's items of $40+ (never women's) in PCs, tailoring or outdoor brands, ranked by % off and dollars saved, at most 4 per store. Faded cards have dropped out of the source feeds. Deals come from public feeds (Slickdeals, DealNews, 9to5Toys, MacRumors, Windows Central, Gear Patrol, Put This On, Stitchdown, Dappered, No Man Walks Alone, Skoaktiebolaget, camelcamelcamel and Reddit deal communities) and each links to the original post. Software keys, subscriptions, kids, toys and pet deals are hidden. Retailers often cancel price-mistake orders, so check fast. Watchlist, targets and alerts are saved in this browser only.</footer>
 </div>
 
 <script>
@@ -214,7 +214,7 @@ const TAB_HELP={picks:"Your lanes only: PC price errors, video-capable machines 
   p95:"Real 95%+ discounts and genuinely free items. Rare; this fills the moment one is posted.",
   creative:"Machines ≤$500 that can edit video: Apple silicon, or Ryzen 7/9 or Core i7/i9 with 16GB+. Refurb and open-box included.",
   power:"High-compute laptops and desktops, ranked for video work: Apple Max/Pro chips and RAM first, then GPU.",
-  tailor:"Tailored pieces and fine shoes first, then other menswear markdowns from No Man Walks Alone and Skoaktiebolaget. Watching Kiton, Isaia, Attolini, Borrelli, Sartorio, Edward Green, Crockett & Jones, Alden, Drake's, Charvet, plus tailoring at Saks Off 5th, Nordstrom Rack, Last Call, Gilt, YOOX, Mr Porter, SSENSE and END. No eBay.",
+  tailor:"Tailored pieces and fine shoes first (Orazio Luciano, Turnbull & Asser, Church's/Tricker's/Carlos Santos at Herring), then other menswear markdowns from No Man Walks Alone and Skoaktiebolaget. Watching Kiton, Isaia, Attolini, Borrelli, Sartorio, Edward Green, Crockett & Jones, Alden, Drake's, Charvet, plus tailoring at Saks Off 5th, Nordstrom Rack, Last Call, Gilt, YOOX, Mr Porter, SSENSE and END. No eBay.",
   brand:"Patagonia, Arc'teryx, The North Face, Fjällräven, Canada Goose and similar brands."};
 const $=s=>document.querySelector(s);
 const has=(d,f)=>(d.flags||[]).includes(f);
@@ -238,7 +238,7 @@ const mineOf=d=>has(d,"pc")||has(d,"tailor")||has(d,"brand");
 function personal(d,kw){
   if(has(d,"hide"))return{s:0,why:[],best:false};
   let s=0;const why=[],mine=mineOf(d),pct=d.pct||0;
-  const real=pct>=50&&d.was!=null&&d.price!=null&&!has(d,"roundup");
+  const real=pct>=50&&d.was!=null&&d.price!=null&&!has(d,"roundup")&&!has(d,"womens");
   if(real){s+=40+Math.min(pct,95)/2;why.push(pct+"% off")}
   if(has(d,"anomaly")){s+=mine?40:15;why.push(mine?"Possible price error":"Unusual price")}
   if(has(d,"creative")){s+=35;why.push("Edits video under $500")}
@@ -252,7 +252,7 @@ function personal(d,kw){
   const t=d.title.toLowerCase(),alert=kw.some(k=>k.split(/\s+/).every(w=>t.includes(w)));
   if(alert){s+=30;why.push("Matches your alert")}
   if(hitTarget(d)){s+=40;why.push("Hit your target")}
-  return{s,why:[...new Set(why)].slice(0,3),best:real&&(mine||alert)};
+  return{s:s+(d.green?100:0),why:[...new Set(why)].slice(0,3),best:!!d.green};
 }
 const scoreAll=()=>{const kw=keywords();deals.forEach(d=>{d._p=personal(d,kw)})};
 const isBest=d=>!!d._p?.best;
@@ -270,7 +270,8 @@ function power(t){
   if(/ryzen\s?(ai\s)?9|ultra\s?9|\bi9\b/i.test(t))s+=8;return s;
 }
 function ago(iso){if(!iso)return"—";const m=Math.max(0,Math.round((Date.now()-Date.parse(iso))/6e4));return m<1?"now":m<60?m+"m":m<1440?Math.round(m/60)+"h":Math.round(m/1440)+"d"}
-const money=n=>n==null?"":n===0?"FREE":"$"+(n>=100?Math.round(n).toLocaleString():n.toFixed(2).replace(/\.00$/,""));
+const SYM={USD:"$",EUR:"€",GBP:"£"};
+const money=(n,cur)=>n==null?"":n===0?"FREE":(SYM[cur]||"$")+(n>=100?Math.round(n).toLocaleString():n.toFixed(2).replace(/\.00$/,""));
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 function inTab(d,t){
@@ -305,7 +306,7 @@ function card(d){
     <button class="star" data-watch="${esc(d.id)}" aria-pressed="${!!w}" aria-label="${w?"Remove from":"Add to"} watchlist">${w?"★":"☆"}</button>
     <div class="body">
       ${best?`<div class="why">● ${esc(p.why.join(" · "))}</div>`:""}
-      <div class="prow"><span class="price${d.price==null?" na":""}">${d.price==null?"See deal":money(d.price)}</span>${d.was?`<span class="was">${money(d.was)}</span>`:""}${d.pct?`<span class="pct">−${d.pct}%</span>`:""}${spark(d.hist)}</div>
+      <div class="prow"><span class="price${d.price==null?" na":""}">${d.price==null?"See deal":money(d.price,d.cur)}</span>${d.was?`<span class="was">${money(d.was,d.cur)}</span>`:""}${d.pct?`<span class="pct">−${d.pct}%</span>`:""}${spark(d.hist)}</div>
       <a class="t" href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.title)}</a>
       <div class="meta">
         ${has(d,"pc")?specs(d.title).map(x=>`<span class="spec">${esc(x)}</span>`).join(""):""}

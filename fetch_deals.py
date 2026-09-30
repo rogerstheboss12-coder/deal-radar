@@ -43,6 +43,13 @@ CORE = [
     ("blog", "dappered", "https://dappered.com/feed/"),
     ("blog", "windowscentral", "https://www.windowscentral.com/feeds/tag/deals"),
     ("blog", "putthison", "https://putthison.com/feed/"),
+    ("blog", "dealcatcher", "https://www.dealcatcher.com/rss"),
+    ("blog", "theinventory", "https://theinventory.com/rss"),
+    ("blog", "hardforum", "https://hardforum.com/forums/h-ot-deals.28/index.rss"),
+    ("blog", "macprices", "https://www.macprices.net/feed/"),
+    ("blog", "appleinsider", "https://appleinsider.com/rss/news"),
+    ("dn", "dn-mens", "https://www.dealnews.com/c202/Clothing-Accessories/Mens/?rss=1&sort=time"),
+    ("dn", "dn-laptops", "https://www.dealnews.com/c39/Computers/Laptops/?rss=1"),
     ("blog", "gearpatrol", "https://www.gearpatrol.com/feed/"),
     ("blog", "stitchdown", "https://www.stitchdown.com/feed"),
     # Open-box stock sells out within hours, so these searches run every time.
@@ -52,6 +59,15 @@ CORE = [
     ("dn", "dn-staffpicks", "https://www.dealnews.com/f1682/Staff-Pick/?rss=1"),
     ("shopify", "nmwa", "https://www.nomanwalksalone.com/collections/sale/products.json?limit=250"),
     ("shopify", "skoa", "https://www.skoaktiebolaget.com/collections/sale/products.json?limit=250"),
+    ("shopify", "orazio", "https://www.orazioluciano.com/collections/sale/products.json?limit=250"),
+    ("shopify", "herring", "https://www.herringshoes.co.uk/collections/sale/products.json?limit=250"),
+    ("shopify", "tanda", "https://www.turnbullandasser.co.uk/collections/sale/products.json?limit=250"),
+    ("shopify", "evo-patagonia", "https://www.evo.com/collections/patagonia/products.json?limit=250"),
+    ("shopify", "evo-tnf", "https://www.evo.com/collections/the-north-face/products.json?limit=250"),
+    ("shopify", "evo-mh", "https://www.evo.com/collections/mountain-hardwear/products.json?limit=250"),
+    ("shopify", "cotopaxi", "https://cotopaxi.com/collections/sale/products.json?limit=250"),
+    ("shopify", "filson", "https://www.filson.com/collections/sale/products.json?limit=250"),
+    ("shopify", "or", "https://www.outdoorresearch.com/collections/sale/products.json?limit=250"),
     ("dn", "dn-hot", "https://www.dealnews.com/?rss=1&sort=hotness"),
     ("dn", "dn-new", "https://www.dealnews.com/?rss=1"),
     ("dn", "dn-computers", "https://www.dealnews.com/c39/Computers/?rss=1&sort=time"),
@@ -72,7 +88,7 @@ SEARCHES = [
     "black diamond", "cotopaxi", "filson", "yeti", "salomon", "hoka",
     # Creative machines on a budget
     "macbook air", "open box macbook", "refurbished macbook", "mac mini", "mini pc", "imac",
-    "780m", "m1 pro", "refurbished laptop", "dell outlet", "lenovo outlet", "micro center",
+    "780m", "m1 pro", "refurbished laptop", "monitor", "macbook open box", "dell outlet", "lenovo outlet", "micro center",
     # Tailoring, shoes and accessories
     "kiton", "isaia", "cesare attolini", "luigi borrelli", "sartorio", "edward green",
     "crockett jones", "alden shoes", "drakes", "charvet",
@@ -234,6 +250,38 @@ def parse_prices(text):
     return price, was, pct
 
 
+WAS_PATTERNS = [
+    # Slickdeals blurb: "on sale for $89.99 - $24.30 off" -> list price is the first number
+    re.compile(r"\b(?:on sale for|priced at)\s+\*?\$\s?([\d,.]+)\*?\s*-\s*(?:\$[\d,.]+|\d+\s?%)", re.I),
+    re.compile(r"\b(?:reg(?:ular)?(?:ly)?\.?(?:\s+price)?(?:\s+of)?|normally|usually|originally|msrp|list(?:\s+price)?|(?:down|dropped|marked down)\s+from)\s*:?\s*\$\s?([\d,.]+)", re.I),
+    re.compile(r"\$\s?([\d,.]+)\s*(?:list|regular|full)(?:\s+price)?\b", re.I),
+]
+BUY_REG = re.compile(r"Buy (?:for|at) \$([\d,.]+)\s*\(\s*Reg\.?\s*\$([\d,.]+)\s*\)", re.I)
+SAVE_AMT = re.compile(r"\$([\d,.]+)\s+(?:off|discount|in savings)\b", re.I)
+
+
+def extract_was(text, price):
+    """Find the original price in a deal blurb. Only trusted when it is above the deal
+    price and not absurdly so (list prices on marketplaces can be fantasy)."""
+    if price is None or price <= 0 or not text:
+        return None
+    for pat in WAS_PATTERNS:
+        for m in pat.finditer(text):
+            was = to_num(m.group(1).rstrip("."))
+            if was and price < was <= price * 20:
+                return was
+    m = SAVE_AMT.search(text)
+    if m and to_num(m.group(1).rstrip(".")):
+        was = round(price + to_num(m.group(1).rstrip(".")), 2)
+        if was <= price * 20:
+            return was
+    return None
+
+
+def plain(html_text):
+    return html.unescape(re.sub(r"<[^>]+>", " ", html_text or ""))
+
+
 def store_from_url(url):
     host = urllib.parse.urlparse(url).netloc.lower().replace("www.", "")
     parts = host.split(".")
@@ -283,6 +331,8 @@ def parse_sd(tag, raw):
         score = re.search(r"Thumb Score:\s*([+-]?\d+)", body)
         img = re.search(r'<img[^>]+src="([^"]+)"', body)
         price, was, pct = parse_prices(title)
+        if was is None and not ROUNDUP.search(title):
+            was = extract_was(plain(body)[:1500], price)
         out.append(base("sd" + m.group(1), "Slickdeals", tag, title, link.split("?")[0], store,
                         price, was, pct, parse_date(item.findtext("pubDate")),
                         img.group(1) if img else None,
@@ -304,6 +354,8 @@ def parse_dn(tag, raw):
         price_txt = item.findtext(dn + "price")
         p2, was, pct = parse_prices(title + " " + desc[:400])
         price = to_num(price_txt) if price_txt else p2
+        if was is None and not ROUNDUP.search(title):
+            was = extract_was(desc[:1500], price)
         if price == 0 and not (FREE_ITEM.search(title) and not JUNK_FREE.search(title)):
             price = p2 or None
         media = item.find("{http://search.yahoo.com/mrss/}content")
@@ -391,7 +443,8 @@ def parse_reddit(tag, raw):
     return out
 
 
-BLOG_SRC = {"putthison": "Put This On", "gearpatrol": "Gear Patrol", "stitchdown": "Stitchdown", "9to5toys": "9to5Toys", "macrumors": "MacRumors", "dappered": "Dappered", "windowscentral": "Windows Central"}
+BLOG_SRC = {"putthison": "Put This On", "dealcatcher": "DealCatcher", "theinventory": "The Inventory",
+            "hardforum": "HardForum", "macprices": "MacPrices", "appleinsider": "AppleInsider", "gearpatrol": "Gear Patrol", "stitchdown": "Stitchdown", "9to5toys": "9to5Toys", "macrumors": "MacRumors", "dappered": "Dappered", "windowscentral": "Windows Central"}
 
 
 def parse_blog(tag, raw):
@@ -411,7 +464,15 @@ def parse_blog(tag, raw):
         img = re.search(r'<img[^>]+src="([^"]+)"', body)
         enc = item.find("enclosure")
         img_url = enc.get("url") if enc is not None and (enc.get("type") or "").startswith("image") else (img.group(1) if img else None)
+        if tag == "hardforum" and re.search(r"\[(dead|ended|expired|oos)\]", title, re.I):
+            continue
         price, was, pct = parse_prices(title)
+        text = plain(body)[:2000]
+        br = BUY_REG.search(text)
+        if br:
+            price, was = to_num(br.group(1)), to_num(br.group(2))
+        elif was is None and not ROUNDUP.search(title):
+            was = extract_was(text, price)
         slug = re.sub(r"\W+", "", urllib.parse.urlparse(link).path)[-40:]
         out.append(base(tag[:2] + slug, BLOG_SRC.get(tag, tag), tag, title, link,
                         store_from_title(title), price, was, pct,
@@ -419,13 +480,25 @@ def parse_blog(tag, raw):
     return out
 
 
-SHOPIFY_STORES = {"nmwa": ("No Man Walks Alone", "https://www.nomanwalksalone.com"),
-                  "skoa": ("Skoaktiebolaget", "https://www.skoaktiebolaget.com")}
+# tag: (store name, host, currency, vendors that count as fine tailoring/shoes — None = all)
+SHOPIFY_STORES = {"nmwa": ("No Man Walks Alone", "https://www.nomanwalksalone.com", "USD", None),
+                  "skoa": ("Skoaktiebolaget", "https://www.skoaktiebolaget.com", "USD", None),
+                  "orazio": ("Orazio Luciano", "https://www.orazioluciano.com", "EUR", None),
+                  "herring": ("Herring Shoes", "https://www.herringshoes.co.uk", "GBP",
+                              r"church|tricker|carlos santos|crockett|edward green|alden"),
+                  "tanda": ("Turnbull & Asser", "https://www.turnbullandasser.co.uk", "GBP", None),
+                  "evo-patagonia": ("evo", "https://www.evo.com", "USD", None),
+                  "evo-tnf": ("evo", "https://www.evo.com", "USD", None),
+                  "evo-mh": ("evo", "https://www.evo.com", "USD", None),
+                  "cotopaxi": ("Cotopaxi", "https://cotopaxi.com", "USD", None),
+                  "filson": ("Filson", "https://www.filson.com", "USD", None),
+                  "or": ("Outdoor Research", "https://www.outdoorresearch.com", "USD", None)}
+OUTDOOR_SHOPS = {"evo-patagonia", "evo-tnf", "evo-mh", "cotopaxi", "filson", "or"}
 
 
 def parse_shopify(tag, raw):
     """Public Shopify sale collections: compare_at_price vs price is a real markdown."""
-    store, host = SHOPIFY_STORES[tag]
+    store, host, cur, fine = SHOPIFY_STORES[tag]
     out = []
     for p in json.loads(raw).get("products", []):
         live = [v for v in p.get("variants", []) if v.get("available")]
@@ -441,11 +514,30 @@ def parse_shopify(tag, raw):
         img = (p.get("images") or [{}])[0].get("src")
         out.append(base(f"sh{tag}{p['id']}", store, tag, title, f"{host}/products/{p['handle']}",
                         store, price, was, None, None,
-                        img, vendor=vendor, apparel=True))
+                        img, vendor=vendor, apparel=tag not in OUTDOOR_SHOPS, outdoor=tag in OUTDOOR_SHOPS, cur=cur,
+                        fine=not fine or bool(re.search(fine, vendor, re.I))))
     return out
 
 
-PARSERS = {"sd": parse_sd, "dn": parse_dn, "bens": parse_bens, "camel": parse_camel, "reddit": parse_reddit, "blog": parse_blog, "shopify": parse_shopify}
+def parse_apple(tag, raw):
+    m = re.search(rb"window\.REFURB_GRID_BOOTSTRAP\s*=\s*(\{.*?\});\s*</script>", raw, re.S)
+    if not m:
+        raise ValueError("refurb data not found")
+    out = []
+    for tile in json.loads(m.group(1)).get("tiles", []):
+        price = to_num(((tile.get("price") or {}).get("currentPrice") or {}).get("raw_amount"))
+        title = tile.get("title") or ""
+        if not price or not re.search(r"mac", title, re.I):
+            continue
+        srcs = ((tile.get("image") or {}).get("sources") or [{}])
+        img = (srcs[0].get("srcSet") or "").split(" ")[0] or None
+        out.append(base("ap" + (tile.get("partNumber") or title).replace("/", ""), "Apple Refurbished", tag,
+                        title, "https://www.apple.com" + (tile.get("productDetailsUrl") or "").split("?")[0],
+                        "Apple", price, None, None, None, img))
+    return out
+
+
+PARSERS = {"sd": parse_sd, "dn": parse_dn, "bens": parse_bens, "camel": parse_camel, "reddit": parse_reddit, "blog": parse_blog, "shopify": parse_shopify, "apple": parse_apple}
 
 
 def flags(d):
@@ -455,7 +547,9 @@ def flags(d):
         f.append("laptop")
         if HIGH_COMPUTE.search(t):
             f.append("power")
-    brand = next((name for name, pat in BRANDS if re.search(pat, t, re.I)), None)
+    brand = next((name for name, pat in BRANDS if re.search(pat, t + " " + (d.get("vendor") or ""), re.I)), None)
+    if not brand and d.get("outdoor"):
+        brand = d.get("vendor") or d.get("store")
     if brand:
         f.append("brand")
         d["brand"] = brand
@@ -463,10 +557,14 @@ def flags(d):
     if tailor and d.get("store") != "eBay":
         f.append("tailor")
         d["brand"] = tailor
-    elif d.get("apparel") and d.get("src") in ("No Man Walks Alone", "Skoaktiebolaget"):
-        # Casual pieces from these shops are "menswear"; tailored pieces and fine shoes count as tailoring.
+    elif d.get("apparel"):
+        # Casual pieces from these shops are "menswear"; tailored pieces and fine shoes
+        # (from the shop's approved makers, where it has a list) count as tailoring.
         d["brand"] = d.get("vendor") or d.get("store")
-        f.append("tailor" if TAILORED_PIECE.search(t) else "menswear")
+        fine_piece = TAILORED_PIECE.search(t) or d.get("src") == "Orazio Luciano"
+        womens = re.search(r"\bladies\b|\bwomen'?s\b|\bwomens\b", t, re.I)
+        if not womens:
+            f.append("tailor" if fine_piece and d.get("fine", True) else "menswear")
     elif d.get("src") in ("Put This On", "Stitchdown") and not re.search(r"ebay", t, re.I):
         f.append("tailor")
     elif (LUX_STORES.search(t + " " + (d.get("store") or "")) and d.get("store") != "eBay"
@@ -491,6 +589,8 @@ def flags(d):
             f.append("over-budget")
     if REFURB.search(t):
         f.append("refurb")
+    if re.search(r"\bladies\b|\bwomen'?s\b|\bwomens\b|\bw's\b|\bkids'?\b|\bgirls'?\b|\bboys'?\b", t, re.I):
+        f.append("womens")
     if HIDE.search(t) or d.get("cat") == "Toys & Kids":
         f.append("hide")
     pct = d.get("pct") or 0
@@ -510,11 +610,40 @@ def flags(d):
     return f
 
 
+GREEN_MAX, GREEN_PER_SOURCE, GREEN_MIN_PRICE = 20, 4, 40
+
+
+def green_candidate(d):
+    """A real 50%+ markdown on a men's item in the shopper's lanes."""
+    f = set(d.get("flags") or [])
+    return ((d.get("pct") or 0) >= 50 and d.get("was") and (d.get("price") or 0) >= GREEN_MIN_PRICE
+            and not {"roundup", "hide", "womens"} & f and bool({"pc", "tailor", "brand"} & f))
+
+
+def mark_green(deals):
+    """Only the very best candidates turn green: ranked by % off plus dollars saved,
+    capped per source so one big sale can't take over."""
+    ranked = sorted((d for d in deals if green_candidate(d)),
+                    key=lambda d: -(d["pct"] + min(d["was"] - d["price"], 1500) / 30))
+    per, n = {}, 0
+    for d in deals:
+        d.pop("green", None)
+    for d in ranked:
+        if n >= GREEN_MAX or per.get(d["src"], 0) >= GREEN_PER_SOURCE:
+            continue
+        d["green"] = True
+        per[d["src"]] = per.get(d["src"], 0) + 1
+        n += 1
+
+
 def is_green(d):
-    """Mirror of the page's green rule: a real 50%+ markdown in the shopper's lanes."""
+    return bool(d.get("green"))
+
+
+def _old_is_green(d):
     f = set(d.get("flags") or [])
     return ((d.get("pct") or 0) >= 50 and d.get("was") and d.get("price") is not None
-            and "roundup" not in f and "hide" not in f and bool({"pc", "tailor", "brand"} & f))
+            and not {"roundup", "hide", "womens"} & f and bool({"pc", "tailor", "brand"} & f))
 
 
 def send_pushes(deals):
@@ -558,7 +687,8 @@ def main():
     known_prev_ranked = [dict(v) for v in known.values()]
 
     group = (t.minute // 5) % 3 if known else None   # first run fetches every search
-    feeds = list(CORE) + [("sd", "q:" + q, SD + "q=" + urllib.parse.quote_plus(q))
+    hourly = [("apple", "apple-refurb", "https://www.apple.com/shop/refurbished/mac")]
+    feeds = list(CORE) + (hourly if group is None or t.minute < 5 else []) + [("sd", "q:" + q, SD + "q=" + urllib.parse.quote_plus(q))
                           for i, q in enumerate(SEARCHES) if group is None or i % 3 == group]
 
     # Different sites are fetched in parallel; requests to the same site stay
@@ -569,7 +699,12 @@ def main():
 
     def run_host(jobs):
         results = []
-        for i, (kind, tag, url) in enumerate(jobs):
+        expanded = []
+        for kind, tag, url in jobs:
+            expanded.append((kind, tag, url))
+            if tag == "herring":
+                expanded += [(kind, tag, url + f"&page={n}") for n in (2, 3)]
+        for i, (kind, tag, url) in enumerate(expanded):
             if i:
                 time.sleep(4 if kind == "reddit" else 0.5)
             try:
@@ -622,6 +757,7 @@ def main():
         json.dump({"deals": known}, open(STATE, "w"))
 
     ranked = sorted(known.values(), key=lambda d: (d.get("posted") or d["seen"]), reverse=True)[:MAX_DEALS]
+    mark_green(ranked)
     os.makedirs(SITE, exist_ok=True)
     out = os.path.join(SITE, "deals.json")
     for d in ranked:   # keep the file lean
@@ -647,7 +783,12 @@ def main():
             fh.write(f"changed={'true' if changed else 'false'}\n")
     print("changed" if changed else "no changes; skipping deploy")
     if known and STATE_URL:   # only from the live job, never on the very first run
-        send_pushes([d for d in ranked if is_green(d) and d["id"] not in was_green])
+        new_green = [d for d in ranked if is_green(d) and d["id"] not in was_green]
+        # A burst means a new source was just added, not a wave of new deals: stay quiet.
+        if len(new_green) <= 15:
+            send_pushes(new_green)
+        else:
+            print(f"{len(new_green)} new green deals at once; skipping notifications this run")
     ok = sum(v == "ok" for v in sources.values())
     print(f"{len(ranked)} deals, {ok}/{len(sources)} feeds ok, bytes={os.path.getsize(out)}")
     if errors:
