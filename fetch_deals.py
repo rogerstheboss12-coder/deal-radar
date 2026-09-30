@@ -108,6 +108,7 @@ ACCESSORY = re.compile(r"\bhub\b|dock|\bcase\b|charger|sleeve|\bstand\b|adapter|
 CREATIVE_SPEC = re.compile(r"\bm[1-6]\b(?! ?\.2)|apple silicon|(ryzen\s?[79]|ryzen ai|core\s?(ultra\s?)?[79]|\bi[79]\b).*\b(16|24|32|48|64)\s?gb|\b(16|24|32|48|64)\s?gb\b.*(ryzen\s?[79]|ryzen ai|core\s?(ultra\s?)?[79]|\bi[79]\b)", re.I)
 REFURB = re.compile(r"refurb|renewed|open[- ]box|pre-owned|certified", re.I)
 HIDE = re.compile(r"windows 1[01]|office (pro|home|20\d\d)|microsoft 365|license|product key|lifetime (license|subscription|access)|subscription|paramount\+|netflix|hulu|disney\+|peacock|max streaming|vpn|free trial|streaming|\bpet\b|\bdog\b|\bcat\b|puppy|kitten|litter", re.I)
+ROUNDUP = re.compile(r"\bup to\b|\bsale\b|\bsitewide\b|\bextra \d+|\bgift card|\bcredit\b|\bevent\b|\bsavings\b|select (styles|items)|\bdeals? (on|at)\b|\bdeals from\b", re.I)
 ANOMALY_WORDS = re.compile(r"price (mistake|error|glitch)|pricing (error|mistake)|\bmispriced\b|\bpenny (deal|item|list|find)s?\b|\$0?\.01\b|\bPM\b.*\bYMMV\b", re.I)
 
 STORE_NAMES = {
@@ -198,7 +199,7 @@ def parse_prices(text):
         price, was = to_num(m.group(1)), to_num(m.group(2))
     # "$X off" where the final price is also given
     if was is None and price is not None:
-        m = re.search(MONEY + r"\s+off\b", t, re.I)
+        m = re.search(r"(?<!up to )" + MONEY + r"\s+off\b", t, re.I)
         if m and to_num(m.group(1)) and to_num(m.group(1)) != price:
             was = round(price + to_num(m.group(1)), 2)
     if was is not None and price is not None and was <= price:
@@ -429,8 +430,10 @@ def flags(d):
     hist = d.get("hist") or []
     first = hist[0][1] if hist else None
     dropped = bool(first) and d.get("price") is not None and d["price"] <= first * 0.7
-    roundup = re.search(r"\bup to\b|\bsale\b|\bsitewide\b", t, re.I)
-    if (pct >= 70 and not roundup) or ANOMALY_WORDS.search(t) or dropped or (d.get("price") is not None and 0 < d["price"] <= 0.05):
+    roundup = ROUNDUP.search(t)
+    if roundup:
+        f.append("roundup")
+    if ANOMALY_WORDS.search(t) or (not roundup and (pct >= 70 or dropped)) or (d.get("price") is not None and 0 < d["price"] <= 0.05):
         f.append("anomaly")
     return f
 

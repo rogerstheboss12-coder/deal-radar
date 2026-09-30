@@ -210,20 +210,21 @@ function personal(d){
   let s=0;const why=[];
   const mine=has(d,"pc")||has(d,"tailor")||has(d,"brand");
   if(has(d,"anomaly")){s+=mine?60:25;why.push(mine?"Possible price error":"Unusual price")}
-  if(has(d,"creative")){s+=40;why.push("Edits video under $500")}
-  if(has(d,"tailor")){s+=45;why.push(d.brand||"Tailoring")}
-  if(has(d,"power")){s+=15;why.push("High-compute")}
-  if(has(d,"brand")){s+=15;why.push(d.brand)}
-  const pct=d.pct||0;if(pct>=30){s+=Math.min(pct,90)/2;why.push(pct+"% off")}
-  if((d.score||0)>=20){s+=Math.min(d.score,80)/4;why.push("Community hot")}
+  if(has(d,"creative")){s+=50;why.push("Edits video under $500")}
+  if(has(d,"tailor")){s+=55;why.push(d.brand||"Tailoring")}
+  if(has(d,"brand")){s+=25;why.push(d.brand)}
+  if(has(d,"power")){s+=10;why.push("High-compute")}
+  const pct=d.pct||0;if(pct>=20){s+=Math.min(pct,90)/2;why.push(pct+"% off")}
+  if((d.score||0)>=10){s+=Math.min(d.score,75)/3;why.push("Community hot")}
   if(d.pick){s+=10;why.push("Staff pick")}
   if(dropped(d)){s+=15;why.push("Price just dropped")}
-  if(isAlert(d)){s+=35;why.push("Matches your alert")}
-  if(hitTarget(d)){s+=60;why.push("Hit your target")}
-  if(!mine&&!isAlert(d)&&!hitTarget(d))s*=0.5;
+  if(has(d,"roundup")||d.price==null)s*=0.4;
+  if(!mine)s*=0.5;
+  if(isAlert(d)){s+=50;why.push("Matches your alert")}
+  if(hitTarget(d)){s+=70;why.push("Hit your target")}
   return{s,why:[...new Set(why)].slice(0,3)};
 }
-const BEST=55;
+const BEST=50;
 const isBest=d=>personal(d).s>=BEST;
 
 function specs(t){
