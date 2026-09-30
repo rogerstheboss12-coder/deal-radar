@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "*/5 * * * *"   # best-effort backup; cron-job.org calls workflow_dispatch every 5 minutes
   workflow_dispatch:
+    inputs:
+      test_push:
+        description: Send a test notification to every connected device
+        type: boolean
+        default: false
   push:
     branches: [main]
 
@@ -35,6 +40,7 @@ jobs:
           STATE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/deals.json
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           PUSH_SUBSCRIPTIONS: ${{ secrets.PUSH_SUBSCRIPTIONS }}
+          TEST_PUSH: ${{ inputs.test_push }}
         run: python3 fetch_deals.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

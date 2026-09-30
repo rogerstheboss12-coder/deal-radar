@@ -532,7 +532,7 @@ def send_pushes(deals):
     subs = json.loads(subs)
     for sub in subs if isinstance(subs, list) else [subs]:
         for d in deals[:5]:
-            msg = {"title": f"{'$%g' % d['price']} · {d['pct']}% off · {d['store']}",
+            msg = {"title": "Deal Radar is connected" if d["id"] == "test" else f"{'$%g' % d['price']} · {d['pct']}% off · {d['store']}",
                    "body": d["title"][:140], "url": d["url"], "icon": d.get("img"), "tag": d["id"]}
             try:
                 webpush(sub, json.dumps(msg), vapid_private_key=vapid,
@@ -610,6 +610,10 @@ def main():
     status = {"updatedAt": stamp, "count": len(ranked), "sources": sources, "errors": errors[:8]}
     json.dump({**status, "deals": ranked}, open(out, "w"), separators=(",", ":"))
     json.dump(status, open(os.path.join(SITE, "meta.json"), "w"), separators=(",", ":"))
+    if os.environ.get("TEST_PUSH") == "true":
+        send_pushes([{"id": "test", "price": 0, "pct": 100, "store": "Deal Radar",
+                      "title": "Test notification: your phone is connected. Green deals will arrive like this.",
+                      "url": "https://rogerstheboss12-coder.github.io/deal-radar/", "img": None}])
     if known and STATE_URL:   # only from the live job, never on the very first run
         send_pushes([d for d in ranked if is_green(d) and d["id"] not in was_green])
     ok = sum(v == "ok" for v in sources.values())
