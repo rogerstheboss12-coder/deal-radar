@@ -236,7 +236,7 @@ function personal(d,kw){
   const t=d.title.toLowerCase(),alert=kw.some(k=>k.split(/\s+/).every(w=>t.includes(w)));
   if(alert){s+=30;why.push("Matches your alert")}
   if(hitTarget(d)){s+=40;why.push("Hit your target")}
-  return{s,why:[...new Set(why)].slice(0,3),best:real&&(mine||alert||has(d,"anomaly"))};
+  return{s,why:[...new Set(why)].slice(0,3),best:real&&(mine||alert)};
 }
 const scoreAll=()=>{const kw=keywords();deals.forEach(d=>{d._p=personal(d,kw)})};
 const isBest=d=>!!d._p?.best;
