@@ -110,7 +110,10 @@ CORE = [
     ("dn", "dn-new", "https://www.dealnews.com/?rss=1"),
     ("dn", "dn-computers", "https://www.dealnews.com/c39/Computers/?rss=1&sort=time"),
     ("bens", "bens", "https://bensbargains.com/rss/"),
-    ("camel", "camel", "https://camelcamelcamel.com/top_drops/feed"),
+    # camel's default feed is mostly 10% wobbles: ask for 50%+ drops, and for the day's biggest dollar drops.
+    ("camel", "camel", "https://camelcamelcamel.com/top_drops/feed?d=50"),
+    ("camel", "camel-big", "https://camelcamelcamel.com/top_drops/feed?t=daily"),
+    ("tg", "errorempire", "https://t.me/s/errorempireusa"),
     # One combined request: Reddit rate-limits quickly, and polling every few
     # minutes still catches every new post.
     ("reddit", "reddit", "https://www.reddit.com/r/buildapcsales+LaptopDeals+deals+DealsReddit/new/.rss?limit=100"),
@@ -455,6 +458,29 @@ def parse_camel(tag, raw):
     return out
 
 
+def parse_tg(tag, raw):
+    """Public Telegram channel preview (t.me/s/...): deal posts with an Amazon link and a was-price."""
+    out = []
+    t = raw.decode("utf-8", "replace")
+    for m in t.split('<div class="tgme_widget_message_wrap')[1:]:
+        body = re.search(r'tgme_widget_message_text[^>]*>(.*?)</div>', m, re.S)
+        if not body:
+            continue
+        text = html.unescape(re.sub(r"<[^>]+>", "", re.sub(r"<br\s*/?>", "\n", body.group(1))))
+        link = re.search(r'href="(https?://(?:www\.)?amazon\.com/[^"]*?/?dp/([A-Z0-9]{10}))', body.group(1))
+        price = re.search(r"\$([\d,]+(?:\.\d+)?)\s*\(was \$([\d,]+(?:\.\d+)?)\)", text)
+        if not link or not price:
+            continue
+        asin = link.group(2)
+        title = re.sub(r"^[^\w$]+", "", text.strip().split("\n")[0]).split(" | ")[0].strip()
+        ts = re.search(r'<time datetime="([^"]+)"', m)
+        img = re.search(r"tgme_widget_message_photo_wrap[^>]*background-image:url\('([^']+)'\)", m)
+        out.append(base("tg" + asin, "Error Empire", tag, title, f"https://www.amazon.com/dp/{asin}", "Amazon",
+                        to_num(price.group(1)), to_num(price.group(2)), None,
+                        ts and ts.group(1)[:19].replace("+00:00", "") + "Z", img and img.group(1)))
+    return out
+
+
 def parse_reddit(tag, raw):
     A = "{http://www.w3.org/2005/Atom}"
     out = []
@@ -748,7 +774,7 @@ def parse_apple(tag, raw):
     return out
 
 
-PARSERS = {"sd": parse_sd, "dn": parse_dn, "bens": parse_bens, "camel": parse_camel, "reddit": parse_reddit, "blog": parse_blog, "shopify": parse_shopify, "apple": parse_apple}
+PARSERS = {"sd": parse_sd, "dn": parse_dn, "bens": parse_bens, "camel": parse_camel, "reddit": parse_reddit, "blog": parse_blog, "shopify": parse_shopify, "apple": parse_apple, "tg": parse_tg}
 
 
 def flags(d):
@@ -1029,7 +1055,7 @@ def main():
             expanded += [(kind, tag, url + f"&page={n}") for n in range(2, PAGES.get(tag, 1) + 1)]
         for i, (kind, tag, url) in enumerate(expanded):
             if i:
-                time.sleep(4 if kind == "reddit" else 2 if tag == "tiedeals" else 0.5)
+                time.sleep(4 if kind == "reddit" else 3 if kind == "camel" else 2 if tag == "tiedeals" else 0.5)
             try:
                 results.append((tag, PARSERS[kind](tag, get(url)), None))
             except Exception as e:  # one bad feed shouldn't stop the rest
