@@ -33,7 +33,8 @@ def cmd_backtest(args, s: Settings) -> None:
         result = backtest.run(frames, settings)
         equity = result.equity[result.equity.index >= start]
         strat = backtest.summarize(equity, settings) | {
-            "trades": result.trades, "fees_paid": round(result.fees, 2), "avg_exposure": round(result.exposure, 2)}
+            "trades": result.trades, "fees_paid": round(result.fees, 2), "avg_exposure": round(result.exposure, 2),
+            "kill_switch_hit": result.killed_on}
         bench_frames = {k: v[v.index >= start] for k, v in frames.items()}
         bench = backtest.summarize(backtest.buy_and_hold(bench_frames, settings), settings)
         return strat, bench
@@ -58,7 +59,8 @@ def cmd_backtest(args, s: Settings) -> None:
             variant = dataclasses.replace(s, trend_len=trend_len, atr_mult=atr_mult)
             st, _ = evaluate(variant, history, start)
             grid.append({"trend_len": trend_len, "atr_mult": atr_mult, "cagr_pct": st["cagr_pct"],
-                         "max_drawdown_pct": st["max_drawdown_pct"], "sharpe": st["sharpe"], "trades": st["trades"]})
+                         "max_drawdown_pct": st["max_drawdown_pct"], "sharpe": st["sharpe"], "trades": st["trades"],
+                         "kill_switch_hit": st["kill_switch_hit"]})
     out["sensitivity"] = grid
     print(json.dumps(out, indent=2))
 

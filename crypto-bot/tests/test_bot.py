@@ -146,3 +146,14 @@ def test_dry_run_and_halt_place_nothing(tmp_path):
     assert out["orders"] and not (tmp_path / "p.json").exists()
     out = run_once(s, PaperBroker(ex, tmp_path / "p.json", s), ex, dry_run=False, halt=True)
     assert out["orders"] == [] and out["status"].startswith("halted")
+
+
+def test_backtest_kill_switch_goes_to_cash_and_stays():
+    s = Settings()
+    rise = wobble(170, 0.01)  # the bot buys around day 150, so the account is still near $100
+    gap = np.full(5, rise[-1] * 0.3)  # overnight -70%: no stop can get out in time
+    data = {"BTC/USD": candles(np.concatenate([rise, gap, gap[-1] * np.linspace(1, 20, 200)]))}
+    r = backtest.run(data, dataclasses.replace(s, symbols=["BTC/USD"], max_weight=1.0, atr_mult=50.0))
+    assert r.killed_on is not None
+    after = r.equity[r.equity.index > pd.Timestamp(r.killed_on, tz="UTC")]
+    assert after.nunique() == 1  # all cash, no re-entry despite the recovery

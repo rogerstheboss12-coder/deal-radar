@@ -17,12 +17,14 @@ class Result:
     trades: int
     fees: float
     exposure: float  # average share of equity invested
+    killed_on: str | None = None  # date the kill switch sold everything, if it did
 
     def stats(self, s: Settings) -> dict:
         return summarize(self.equity, s) | {
             "trades": self.trades,
             "fees_paid": round(self.fees, 2),
             "avg_exposure": round(self.exposure, 2),
+            "kill_switch_hit": self.killed_on,
         }
 
 
@@ -41,14 +43,18 @@ def run(data: dict[str, pd.DataFrame], s: Settings) -> Result:
     cash = s.starting_cash
     qty = {sym: 0.0 for sym in data}
     equity, trades, fees, exposure = [], 0, 0.0, []
+    killed_on = None
 
     for i, ts in enumerate(index):
         if i > 0:
             opens = {sym: data[sym]["open"].iloc[i] for sym in data}
             total = cash + sum(qty[sym] * opens[sym] for sym in data)
+            # Same rule as live trading: below kill_equity, sell everything and never buy again.
+            if killed_on is None and total < s.kill_equity:
+                killed_on = str(ts.date())
             orders = []
             for sym in data:
-                target_value = weights[sym].iloc[i - 1] * total
+                target_value = 0.0 if killed_on else weights[sym].iloc[i - 1] * total
                 delta = target_value - qty[sym] * opens[sym]
                 if needs_trade(delta, target_value, total, s):
                     orders.append((sym, delta))
@@ -74,7 +80,7 @@ def run(data: dict[str, pd.DataFrame], s: Settings) -> Result:
         equity.append(cash + held)
         exposure.append(held / (cash + held) if cash + held > 0 else 0.0)
 
-    return Result(pd.Series(equity, index=index), trades, fees, sum(exposure) / len(exposure))
+    return Result(pd.Series(equity, index=index), trades, fees, sum(exposure) / len(exposure), killed_on)
 
 
 def needs_trade(delta: float, target_value: float, total: float, s: Settings) -> bool:

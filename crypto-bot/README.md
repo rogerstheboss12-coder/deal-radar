@@ -11,7 +11,8 @@ Once a day, after the daily candle closes, it decides for each coin: **hold it o
 - **Sell** when the uptrend breaks, or price falls 3× the average daily range (ATR) below its
   best close since buying.
 - **Size:** at most half the account per coin, less when the coin is unusually volatile.
-- **Kill switch:** if the account falls below **$70**, it sells everything and stops trading.
+- **Kill switch:** if the account falls below **$70**, it sells everything and stops trading. It's a
+  fixed dollar floor (you never lose more than $30 of the $100), so it's simulated in the backtest too.
 
 It is long-only: no leverage, no shorting, no futures. You can lose money, but not more than you
 put in. It trades rarely on purpose: on a $100 account, Kraken's fee of roughly 0.4% per market
