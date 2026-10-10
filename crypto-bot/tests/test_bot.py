@@ -6,6 +6,7 @@ import pytest
 
 from cryptobot import backtest
 from cryptobot.config import Settings
+from cryptobot.risk import Guard
 from cryptobot.strategy import target_weights
 from cryptobot.trader import PaperBroker, plan, run_once
 
@@ -128,15 +129,43 @@ def test_paper_round_trip(tmp_path):
     assert again["orders"] == []
 
 
-def test_kill_switch_sells_everything(tmp_path):
+def test_pause_sells_everything_and_remembers(tmp_path):
     s = Settings()
     ex = FakeExchange({"BTC/USD": candles(wobble(500, 0.01, seed=1)), "ETH/USD": candles(wobble(500, -0.01, seed=2))})
     broker = PaperBroker(ex, tmp_path / "paper.json", s)
     price = ex.fetch_ticker("BTC/USD")["last"]
-    broker.state["balances"] = {"USD": 10.0, "BTC": 50.0 / price}  # equity $60 < $70
-    out = run_once(s, broker, ex, dry_run=False)
-    assert out["status"].startswith("KILL SWITCH")
+    broker.state["balances"] = {"USD": 10.0, "BTC": 50.0 / price}  # $60, floor set at $100 earlier
+    guard = Guard(floor=70.0)
+    out = run_once(s, broker, ex, dry_run=False, guard=guard)
+    assert out["status"].startswith("PAUSED")
     assert out["balances"]["BTC"] == 0
+    assert guard.paused_until is not None and guard.pauses == 1
+    # Next day: still paused even though the trend is up, so nothing is bought.
+    again = run_once(s, PaperBroker(ex, tmp_path / "paper.json", s), ex, dry_run=False, guard=guard)
+    assert again["orders"] == [] and again["status"].startswith("PAUSED")
+
+
+def test_guard_resumes_with_new_floor():
+    s = Settings()
+    g = Guard()
+    t0 = pd.Timestamp("2024-01-01", tz="UTC")
+    assert g.allows_trading(100, t0, s) and g.floor == pytest.approx(70)
+    assert not g.allows_trading(65, t0 + pd.Timedelta(days=1), s)
+    assert not g.allows_trading(65, t0 + pd.Timedelta(days=20), s)
+    assert g.allows_trading(65, t0 + pd.Timedelta(days=32), s)
+    assert g.floor == pytest.approx(65 * 0.7)
+
+
+def test_backtest_pause_then_reenters():
+    s = Settings()
+    rise = wobble(170, 0.01)  # the bot buys around day 150, so the account is still near $100
+    gap = np.full(5, rise[-1] * 0.3)  # overnight -70%: no stop can get out in time
+    data = {"BTC/USD": candles(np.concatenate([rise, gap, gap[-1] * np.linspace(1, 20, 200)]))}
+    r = backtest.run(data, dataclasses.replace(s, symbols=["BTC/USD"], max_weight=1.0, atr_mult=50.0))
+    assert len(r.pauses) == 1
+    paused = r.equity[pd.Timestamp(r.pauses[0], tz="UTC"):].iloc[1 : s.pause_days]
+    assert paused.nunique() == 1  # in cash during the pause
+    assert r.equity.iloc[-1] > paused.iloc[0] * 2  # back in for the recovery
 
 
 def test_dry_run_and_halt_place_nothing(tmp_path):
@@ -147,13 +176,3 @@ def test_dry_run_and_halt_place_nothing(tmp_path):
     out = run_once(s, PaperBroker(ex, tmp_path / "p.json", s), ex, dry_run=False, halt=True)
     assert out["orders"] == [] and out["status"].startswith("halted")
 
-
-def test_backtest_kill_switch_goes_to_cash_and_stays():
-    s = Settings()
-    rise = wobble(170, 0.01)  # the bot buys around day 150, so the account is still near $100
-    gap = np.full(5, rise[-1] * 0.3)  # overnight -70%: no stop can get out in time
-    data = {"BTC/USD": candles(np.concatenate([rise, gap, gap[-1] * np.linspace(1, 20, 200)]))}
-    r = backtest.run(data, dataclasses.replace(s, symbols=["BTC/USD"], max_weight=1.0, atr_mult=50.0))
-    assert r.killed_on is not None
-    after = r.equity[r.equity.index > pd.Timestamp(r.killed_on, tz="UTC")]
-    assert after.nunique() == 1  # all cash, no re-entry despite the recovery

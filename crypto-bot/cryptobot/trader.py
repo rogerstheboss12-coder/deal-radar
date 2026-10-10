@@ -13,10 +13,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import ccxt
+import pandas as pd
 
 from .backtest import needs_trade
 from .config import Settings
 from .data import fetch_recent, make_exchange
+from .risk import Guard
 from .strategy import target_weights
 
 log = logging.getLogger("cryptobot")
@@ -130,7 +132,10 @@ def plan(s: Settings, weights: dict[str, float], prices: dict[str, float], balan
     return equity, [o for o in orders if o.usd >= s.min_order_usd or (o.side == "sell" and weights[o.symbol] == 0)]
 
 
-def run_once(s: Settings, broker, data_exchange: ccxt.Exchange, dry_run: bool, halt: bool = False) -> dict:
+def run_once(s: Settings, broker, data_exchange: ccxt.Exchange, dry_run: bool, halt: bool = False,
+             guard: Guard | None = None) -> dict:
+    """`guard` is updated in place; the caller persists it between runs."""
+    guard = guard if guard is not None else Guard()
     candles = s.warmup + 200
     weights, prices = {}, {}
     for sym in s.symbols:
@@ -143,9 +148,10 @@ def run_once(s: Settings, broker, data_exchange: ccxt.Exchange, dry_run: bool, h
     status = "ok"
     if halt:
         status = "halted (CRYPTOBOT_HALT is set): no orders placed"
-        return report(s, status, equity, weights, prices, balances, [], dry_run)
-    if equity < s.kill_equity:
-        status = f"KILL SWITCH: equity {equity:.2f} < {s.kill_equity:.2f}, selling everything"
+        return report(s, status, equity, weights, prices, balances, [], dry_run, guard)
+    now = pd.Timestamp(data_exchange.milliseconds(), unit="ms", tz="UTC")
+    if not guard.allows_trading(equity, now, s):
+        status = f"PAUSED until {guard.paused_until}: equity fell below the floor (${guard.floor:.2f}), holding cash"
         weights = {sym: 0.0 for sym in s.symbols}
         log.warning(status)
 
@@ -161,14 +167,15 @@ def run_once(s: Settings, broker, data_exchange: ccxt.Exchange, dry_run: bool, h
         placed.append(order.__dict__)
     if not dry_run and isinstance(broker, PaperBroker):
         broker.save()
-    return report(s, status, equity, weights, prices, broker.balances(), placed, dry_run)
+    return report(s, status, equity, weights, prices, broker.balances(), placed, dry_run, guard)
 
 
-def report(s, status, equity, weights, prices, balances, orders, dry_run) -> dict:
+def report(s, status, equity, weights, prices, balances, orders, dry_run, guard=None) -> dict:
     return {
         "status": status,
         "dry_run": dry_run,
         "equity_usd": round(equity, 2),
+        "guard": guard.to_dict() if guard else None,
         "target_weights": {k: round(v, 3) for k, v in weights.items()},
         "prices": prices,
         "balances": {k: v for k, v in balances.items() if k == s.quote or f"{k}/{s.quote}" in s.symbols},

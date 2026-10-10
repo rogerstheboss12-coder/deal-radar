@@ -28,7 +28,8 @@ class Settings:
     max_weight: float = 0.5           # max share of equity in any one coin
     min_order_usd: float = 10.0       # below this, orders are skipped (exchange minimums, fees)
     rebalance_band: float = 0.10      # ignore target changes smaller than 10% of equity
-    kill_equity: float = 70.0         # if equity drops below this (USD), sell everything and halt
+    pause_drawdown: float = 0.30      # if equity drops 30% from where it started (or last resumed), go to cash...
+    pause_days: int = 30              # ...for this long, then trade again with a new floor
 
     # Backtest cost model: market orders pay the taker fee plus slippage.
     fee: float = 0.004

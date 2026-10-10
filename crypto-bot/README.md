@@ -11,9 +11,10 @@ Once a day, after the daily candle closes, it decides for each coin: **hold it o
 - **Sell** when the uptrend breaks, or price falls 3× the average daily range (ATR) below its
   best close since buying.
 - **Size:** at most half the account per coin, less when the coin is unusually volatile.
-- **Kill switch:** if the account falls below **$70**, it sells everything and stops trading. It's a
-  fixed dollar floor, simulated in the backtest too. It acts at the next daily check, so a sudden crash
-  can take the account below $70 before it sells.
+- **Circuit breaker:** if the account drops **30%** from where it started (e.g. $100 → $70), it sells
+  everything and sits in cash for **30 days**, then trades again with a new floor 30% below where it
+  resumed. It acts at the daily check, so a sudden crash can go past the floor before it sells. (A
+  permanent stop was tested first: it got hit in the 2018 crash and sat out the next seven years.)
 
 It is long-only: no leverage, no shorting, no futures. You can lose money, but not more than you
 put in. It trades rarely on purpose: on a $100 account, Kraken's fee of roughly 0.4% per market
@@ -29,8 +30,12 @@ prints both side by side so you can judge.
 Everything runs in GitHub Actions (**Actions → Crypto bot → Run workflow**), so you don't need a server.
 
 1. **Backtest:** runs on every push to `crypto-bot/`. It reports returns, max drawdown, fees and
-   trade count against buy-and-hold since 2017, plus each half of that history separately and a
-   grid of nearby settings (if only one setting looks good, that's luck, not an edge).
+   trade count against buy-and-hold since 2017. It also checks:
+   - each half of that history separately;
+   - a grid of nearby settings (if only one setting looks good, that's luck, not an edge);
+   - **start dates**: $100 started at every quarter since 2018 and run for 2 years, showing the
+     worst, typical and best outcomes, since one backtest is just one roll of the dice;
+   - three fee levels.
 2. **Paper trade:** runs daily with a fake $100 and real prices. Let it run for a few weeks first.
 3. **Live:**
    1. Create a Kraken account, verify it, and deposit $100.
@@ -41,6 +46,9 @@ Everything runs in GitHub Actions (**Actions → Crypto bot → Run workflow**),
    4. Without anything else, the daily run is a **dry run**: it logs the orders it *would* place.
       Check those logs.
    5. To trade for real, add the repository **variable** `CRYPTOBOT_ALLOW_LIVE` = `yes`.
+
+The circuit breaker remembers its floor in `guard-live.json` (Actions cache in CI). If you add
+money later, clear the Actions cache so the floor resets to the new balance.
 
 **To stop it:** set the variable `CRYPTOBOT_HALT` = `yes` (no orders are placed), or delete
 `CRYPTOBOT_ALLOW_LIVE`. To cash out, sell on Kraken yourself. The bot only manages BTC, ETH and
@@ -69,6 +77,7 @@ Any setting in `cryptobot/config.py` can be overridden with an environment varia
 | --- | --- |
 | `cryptobot/strategy.py` | buy/sell rules, shared by the backtest and live trading |
 | `cryptobot/backtest.py` | simulation with fees, slippage and next-day-open fills |
-| `cryptobot/trader.py` | one live/paper pass: balances → target → orders, kill switch |
+| `cryptobot/trader.py` | one live/paper pass: balances → target → orders |
+| `cryptobot/risk.py` | the circuit breaker (pause and resume), shared by backtest and live |
 | `cryptobot/data.py` | candle downloads through ccxt |
 | `cryptobot/config.py` | all settings |

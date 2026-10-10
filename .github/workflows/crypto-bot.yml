@@ -59,22 +59,28 @@ jobs:
           python-version: "3.12"
       - run: pip install --quiet -r requirements.txt
 
-      # Paper account: the ledger lives in the Actions cache between runs.
+      # The paper ledger and both circuit-breaker states live in the Actions cache between runs.
       - uses: actions/cache/restore@v4
-        if: github.event_name == 'schedule' || inputs.task == 'paper'
         with:
-          path: crypto-bot/paper.json
-          key: paper-ledger-${{ github.run_id }}
-          restore-keys: paper-ledger-
+          path: |
+            crypto-bot/paper.json
+            crypto-bot/guard-paper.json
+            crypto-bot/guard-live.json
+          key: bot-state-${{ github.run_id }}
+          restore-keys: bot-state-
       - name: Paper trade
         if: github.event_name == 'schedule' || inputs.task == 'paper'
+        continue-on-error: true   # a paper-trading hiccup must not skip the live run
         run: python -m cryptobot trade --mode paper
-      - uses: actions/cache/save@v4
-        if: github.event_name == 'schedule' || inputs.task == 'paper'
-        with:
-          path: crypto-bot/paper.json
-          key: paper-ledger-${{ github.run_id }}
-
       - name: Live trade
         if: (github.event_name == 'schedule' || inputs.task == 'live') && env.CRYPTOBOT_API_KEY != ''
         run: python -m cryptobot trade --mode live
+      - uses: actions/cache/save@v4
+        if: always()
+        continue-on-error: true   # nothing to save after a dry run
+        with:
+          path: |
+            crypto-bot/paper.json
+            crypto-bot/guard-paper.json
+            crypto-bot/guard-live.json
+          key: bot-state-${{ github.run_id }}

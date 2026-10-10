@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from .config import Settings
+from .risk import Guard
 from .strategy import _timeframe_seconds, target_weights
 
 
@@ -17,14 +18,14 @@ class Result:
     trades: int
     fees: float
     exposure: float  # average share of equity invested
-    killed_on: str | None = None  # date the kill switch sold everything, if it did
+    pauses: list[str]  # dates the circuit breaker moved everything to cash
 
     def stats(self, s: Settings) -> dict:
         return summarize(self.equity, s) | {
             "trades": self.trades,
             "fees_paid": round(self.fees, 2),
             "avg_exposure": round(self.exposure, 2),
-            "kill_switch_hit": self.killed_on,
+            "pauses": self.pauses,
         }
 
 
@@ -43,18 +44,19 @@ def run(data: dict[str, pd.DataFrame], s: Settings) -> Result:
     cash = s.starting_cash
     qty = {sym: 0.0 for sym in data}
     equity, trades, fees, exposure = [], 0, 0.0, []
-    killed_on = None
+    guard, pauses = Guard(), []
 
     for i, ts in enumerate(index):
         if i > 0:
             opens = {sym: data[sym]["open"].iloc[i] for sym in data}
             total = cash + sum(qty[sym] * opens[sym] for sym in data)
-            # Same rule as live trading: below kill_equity, sell everything and never buy again.
-            if killed_on is None and total < s.kill_equity:
-                killed_on = str(ts.date())
+            before = guard.pauses
+            trading = guard.allows_trading(total, ts, s)
+            if guard.pauses > before:
+                pauses.append(str(ts.date()))
             orders = []
             for sym in data:
-                target_value = 0.0 if killed_on else weights[sym].iloc[i - 1] * total
+                target_value = weights[sym].iloc[i - 1] * total if trading else 0.0
                 delta = target_value - qty[sym] * opens[sym]
                 if needs_trade(delta, target_value, total, s):
                     orders.append((sym, delta))
@@ -80,7 +82,7 @@ def run(data: dict[str, pd.DataFrame], s: Settings) -> Result:
         equity.append(cash + held)
         exposure.append(held / (cash + held) if cash + held > 0 else 0.0)
 
-    return Result(pd.Series(equity, index=index), trades, fees, sum(exposure) / len(exposure), killed_on)
+    return Result(pd.Series(equity, index=index), trades, fees, sum(exposure) / len(exposure), pauses)
 
 
 def needs_trade(delta: float, target_value: float, total: float, s: Settings) -> bool:

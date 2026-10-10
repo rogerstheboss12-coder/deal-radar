@@ -15,8 +15,11 @@ import os
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 from . import backtest, data
 from .config import Settings
+from .risk import Guard
 from .trader import build_broker, run_once
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -34,7 +37,7 @@ def cmd_backtest(args, s: Settings) -> None:
         equity = result.equity[result.equity.index >= start]
         strat = backtest.summarize(equity, settings) | {
             "trades": result.trades, "fees_paid": round(result.fees, 2), "avg_exposure": round(result.exposure, 2),
-            "kill_switch_hit": result.killed_on}
+            "pauses": result.pauses}
         bench_frames = {k: v[v.index >= start] for k, v in frames.items()}
         bench = backtest.summarize(backtest.buy_and_hold(bench_frames, settings), settings)
         return strat, bench
@@ -60,9 +63,47 @@ def cmd_backtest(args, s: Settings) -> None:
             st, _ = evaluate(variant, history, start)
             grid.append({"trend_len": trend_len, "atr_mult": atr_mult, "cagr_pct": st["cagr_pct"],
                          "max_drawdown_pct": st["max_drawdown_pct"], "sharpe": st["sharpe"], "trades": st["trades"],
-                         "kill_switch_hit": st["kill_switch_hit"]})
+                         "pauses": len(st["pauses"])})
     out["sensitivity"] = grid
+    out["start_dates"] = start_date_test(s, history, evaluate)
+    # Fees decide a lot on a small account: Kraken limit orders (0.25%), Kraken market (0.40%), Coinbase (0.60%).
+    out["fee_levels"] = {f"{fee:.2%}": evaluate(dataclasses.replace(s, fee=fee), history, start)[0]["final_equity"]
+                         for fee in (0.0025, 0.004, 0.006)}
     print(json.dumps(out, indent=2))
+
+
+def start_date_test(s: Settings, history, evaluate, years: int = 2) -> dict:
+    """Start with $100 at the beginning of every quarter and run `years` years. One backtest is one roll of
+    the dice: this shows the spread of outcomes, including how bad an unlucky start can be."""
+    index = next(iter(history.values())).index
+    warm = max(s.warmup, dataclasses.replace(s, trend_len=200).warmup)
+    runs = []
+    for start in pd.date_range(index[warm], index[-1] - pd.DateOffset(years=years), freq="QS"):
+        pos = index.searchsorted(start)
+        end = index[pos] + pd.DateOffset(years=years)
+        frames = {k: v[(v.index >= index[pos - s.warmup]) & (v.index < end)] for k, v in history.items()}
+        strat, bench = evaluate(s, frames, index[pos])
+        runs.append({"start": strat["start"], "strategy": strat["final_equity"], "buy_and_hold": bench["final_equity"],
+                     "strategy_max_dd": strat["max_drawdown_pct"], "hold_max_dd": bench["max_drawdown_pct"],
+                     "pauses": len(strat["pauses"])})
+    if not runs:
+        return {}
+    df = pd.DataFrame(runs)
+
+    def spread(col):
+        return {"worst": round(df[col].min(), 2), "median": round(df[col].median(), 2), "best": round(df[col].max(), 2)}
+
+    return {
+        "runs": len(df),
+        "years_each": years,
+        "strategy_final_equity": spread("strategy"),
+        "buy_and_hold_final_equity": spread("buy_and_hold"),
+        "strategy_lost_money_pct": round((df["strategy"] < 100).mean() * 100),
+        "buy_and_hold_lost_money_pct": round((df["buy_and_hold"] < 100).mean() * 100),
+        "strategy_beat_hold_pct": round((df["strategy"] > df["buy_and_hold"]).mean() * 100),
+        "worst_drawdown": {"strategy": df["strategy_max_dd"].min(), "buy_and_hold": df["hold_max_dd"].min()},
+        "detail": runs,
+    }
 
 
 def cmd_trade(args, s: Settings) -> None:
@@ -73,7 +114,13 @@ def cmd_trade(args, s: Settings) -> None:
     broker, data_exchange = build_broker(
         s, args.mode, os.environ.get("CRYPTOBOT_API_KEY"), os.environ.get("CRYPTOBOT_API_SECRET"), Path(args.paper_file))
     halt = os.environ.get("CRYPTOBOT_HALT", "").lower() in ("1", "yes", "true")
-    print(json.dumps(run_once(s, broker, data_exchange, dry_run, halt), indent=2, default=str))
+    # The circuit breaker's floor and pause survive between runs in a small file (Actions cache in CI).
+    guard_file = ROOT / f"guard-{args.mode}.json"
+    guard = Guard.from_dict(json.loads(guard_file.read_text()) if guard_file.exists() else None)
+    result = run_once(s, broker, data_exchange, dry_run, halt, guard)
+    if not dry_run:
+        guard_file.write_text(json.dumps(guard.to_dict(), indent=2))
+    print(json.dumps(result, indent=2, default=str))
 
 
 def main(argv: list[str] | None = None) -> None:
