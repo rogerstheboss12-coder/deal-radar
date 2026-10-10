@@ -244,3 +244,14 @@ def test_micro_pipeline_finds_planted_cross_coin_pattern():
     assert model > 1_000
     assert model > micro.trade(fake, 1, 0.55)["final"] * 10
     assert model > micro.trade(real, 1, None, np.random.default_rng(0))["final"] * 10
+
+
+def test_tick_fee_wall_math():
+    from cryptobot import ticks
+    idx = pd.date_range("2026-01-01", periods=3600, freq="1s", tz="UTC")
+    calm = ticks.measure(pd.Series(100 * np.exp(np.cumsum(np.full(3600, 1e-5))), index=idx))
+    assert calm["1s"]["beats_taker 0.40%x2_pct"] == 0
+    assert calm["1s"]["perfect_$100_per_day_taker 0.40%x2"] == 100  # nothing ever beats the fee
+    jumpy = pd.Series(np.where(np.arange(3600) % 2, 101.0, 100.0), index=idx)  # 1% swing every second
+    r = ticks.measure(jumpy)
+    assert r["1s"]["beats_taker 0.40%x2_pct"] == 100

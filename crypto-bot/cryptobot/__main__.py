@@ -145,6 +145,16 @@ def cmd_micro(args, s: Settings) -> None:
     print(micro.table(result))
 
 
+def cmd_ticks(args, s: Settings) -> None:
+    from . import ticks
+    result = ticks.run(args.coins, args.hours)
+    Path(args.out).write_text(json.dumps(result, indent=2))
+    print("Real Kraken trades. Round-trip cost: 0.5% with limit (maker) orders, 0.8% with market (taker) orders.")
+    print("PERFECT foresight = trade every move bigger than the cost, always in the right direction. No real")
+    print("strategy can beat it; it also counts bid/ask bounce as a move, which nobody can capture.\n")
+    print(ticks.table(result))
+
+
 def cmd_trade(args, s: Settings) -> None:
     allow_live = os.environ.get("CRYPTOBOT_ALLOW_LIVE", "").lower() == "yes"
     dry_run = args.dry_run or (args.mode == "live" and not allow_live)
@@ -192,6 +202,11 @@ def main(argv: list[str] | None = None) -> None:
     mc.add_argument("--refresh", action="store_true")
     mc.add_argument("--out", default=str(ROOT / "micro.json"))
 
+    tk = sub.add_parser("ticks", help="second-by-second fee-wall check on real Kraken trades")
+    tk.add_argument("--coins", type=int, default=10, help="number of small coins")
+    tk.add_argument("--hours", type=float, default=72, help="hours of trades per small coin")
+    tk.add_argument("--out", default=str(ROOT / "ticks.json"))
+
     tr = sub.add_parser("trade", help="run one trading pass")
     tr.add_argument("--mode", choices=["paper", "live"], default="paper")
     tr.add_argument("--dry-run", action="store_true", help="show the orders without placing them")
@@ -200,7 +215,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     s = Settings.from_env()
     {"backtest": cmd_backtest, "lottery": cmd_lottery, "patterns": cmd_patterns, "micro": cmd_micro,
-     "trade": cmd_trade}[args.cmd](args, s)
+     "ticks": cmd_ticks, "trade": cmd_trade}[args.cmd](args, s)
 
 
 if __name__ == "__main__":
