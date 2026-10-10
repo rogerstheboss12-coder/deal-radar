@@ -176,3 +176,24 @@ def test_dry_run_and_halt_place_nothing(tmp_path):
     out = run_once(s, PaperBroker(ex, tmp_path / "p.json", s), ex, dry_run=False, halt=True)
     assert out["orders"] == [] and out["status"].startswith("halted")
 
+
+
+def test_lottery_liquidates_on_adverse_move():
+    from cryptobot import lottery
+    o = np.array([100.0, 100, 100, 100])
+    h = np.array([100.0, 101, 101, 101])
+    l = np.array([100.0, 98.5, 99, 99])  # -1.5% intraday
+    c = np.array([100.0, 100, 100, 100])
+    long = np.ones(4)
+    assert lottery.simulate(o, h, l, c, long, 1, 4, 100)[0] == 0      # 100x: wiped out
+    final, _ = lottery.simulate(o, h, l, c, long, 1, 4, 10)            # 10x survives, pays fees + funding
+    assert 95 < final < 100
+
+
+def test_lottery_compounds_wins():
+    from cryptobot import lottery
+    o = np.array([100.0, 100, 110, 121])
+    c = np.array([100.0, 110, 121, 133.1])
+    h, l = np.maximum(o, c), np.minimum(o, c)
+    final, peak = lottery.simulate(o, h, l, c, np.ones(4), 1, 4, 3)
+    assert final > 100 * (1 + 3 * 0.331) * 0.95 and peak >= final

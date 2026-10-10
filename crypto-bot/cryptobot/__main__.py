@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import backtest, data
+from . import backtest, data, lottery
 from .config import Settings
 from .risk import Guard
 from .trader import build_broker, run_once
@@ -106,6 +106,22 @@ def start_date_test(s: Settings, history, evaluate, years: int = 2) -> dict:
     }
 
 
+def cmd_lottery(args, s: Settings) -> None:
+    history = {}
+    for sym in args.coins.split(","):
+        try:
+            history[sym] = data.load_or_fetch(args.source, sym, "1d", args.since, args.refresh)
+        except Exception as exc:  # a coin the exchange doesn't list shouldn't sink the whole test
+            logging.warning("skipping %s: %s", sym, exc)
+    result = lottery.run(history, step_days=args.step)
+    Path(args.out).write_text(json.dumps(result, indent=2))
+    print(f"{result['total_runs']:,} runs of $100 on {', '.join(result['coins'])}\n")
+    print(lottery.table(result))
+    print("\nDays when a perfect guess at 100x turned $100 into $1,000 in one day:")
+    for coin, d in result["one_day_10x"].items():
+        print(f"  {coin}: {d['winning_days']} of {d['days']} days ({d['pct']}%)")
+
+
 def cmd_trade(args, s: Settings) -> None:
     allow_live = os.environ.get("CRYPTOBOT_ALLOW_LIVE", "").lower() == "yes"
     dry_run = args.dry_run or (args.mode == "live" and not allow_live)
@@ -133,6 +149,14 @@ def main(argv: list[str] | None = None) -> None:
     bt.add_argument("--since", default="2017-01-01")
     bt.add_argument("--refresh", action="store_true", help="re-download instead of using the cache")
 
+    lt = sub.add_parser("lottery", help="test all-in leveraged strategies from many start dates")
+    lt.add_argument("--source", default="bitstamp")
+    lt.add_argument("--coins", default="BTC/USD,ETH/USD,SOL/USD,XRP/USD,DOGE/USD")
+    lt.add_argument("--since", default="2017-01-01")
+    lt.add_argument("--step", type=int, default=7, help="days between start dates")
+    lt.add_argument("--refresh", action="store_true")
+    lt.add_argument("--out", default=str(ROOT / "lottery.json"))
+
     tr = sub.add_parser("trade", help="run one trading pass")
     tr.add_argument("--mode", choices=["paper", "live"], default="paper")
     tr.add_argument("--dry-run", action="store_true", help="show the orders without placing them")
@@ -140,7 +164,7 @@ def main(argv: list[str] | None = None) -> None:
 
     args = parser.parse_args(argv)
     s = Settings.from_env()
-    {"backtest": cmd_backtest, "trade": cmd_trade}[args.cmd](args, s)
+    {"backtest": cmd_backtest, "lottery": cmd_lottery, "trade": cmd_trade}[args.cmd](args, s)
 
 
 if __name__ == "__main__":

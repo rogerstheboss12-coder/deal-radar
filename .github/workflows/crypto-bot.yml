@@ -38,10 +38,14 @@ jobs:
       - run: python -m pytest -q
       - name: Backtest on real history
         run: python -m cryptobot backtest | tee backtest.json
+      - name: Lottery test (all-in leveraged strategies, many start dates)
+        run: python -m cryptobot lottery
       - uses: actions/upload-artifact@v4
         with:
           name: backtest
-          path: crypto-bot/backtest.json
+          path: |
+            crypto-bot/backtest.json
+            crypto-bot/lottery.json
 
   trade:
     if: github.event_name == 'schedule' || inputs.task == 'paper' || inputs.task == 'live'
