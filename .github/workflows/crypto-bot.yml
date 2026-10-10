@@ -16,10 +16,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: crypto-bot-${{ github.ref }}
-  cancel-in-progress: false   # never interrupt a run that may be placing orders
-
 defaults:
   run:
     working-directory: crypto-bot
@@ -72,20 +68,26 @@ jobs:
   micro:
     if: github.event_name == 'push' || inputs.task == 'backtest'
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 100
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install --quiet -r requirements.txt
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         with:
           path: crypto-bot/data
           key: small-coin-candles-${{ github.run_id }}
           restore-keys: small-coin-candles-
       - name: Small-coin pattern search (Coinbase, 6h candles, walk-forward)
+        timeout-minutes: 80
         run: python -m cryptobot micro
+      - uses: actions/cache/save@v4
+        if: always()   # keep downloaded candles even if the run times out, so the next run resumes
+        with:
+          path: crypto-bot/data
+          key: small-coin-candles-${{ github.run_id }}
       - uses: actions/upload-artifact@v4
         with:
           name: micro
@@ -111,6 +113,9 @@ jobs:
   trade:
     if: github.event_name == 'schedule' || inputs.task == 'paper' || inputs.task == 'live'
     runs-on: ubuntu-latest
+    concurrency:
+      group: crypto-bot-trade
+      cancel-in-progress: false   # never interrupt a run that may be placing orders
     timeout-minutes: 10
     env:
       CRYPTOBOT_API_KEY: ${{ secrets.CRYPTOBOT_API_KEY }}

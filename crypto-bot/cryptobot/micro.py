@@ -43,20 +43,36 @@ TOP_K = 3
 THRESHOLDS = (0.55, 0.60, 0.65)
 HORIZONS = (1, 4)          # in 6h candles: 6 hours and 1 day
 TRAIN_YEARS = 2
-SHUFFLES = 3
+SHUFFLES = 2
 
 
 def fetch_all(since: str = "2019-01-01", refresh: bool = False) -> dict[str, pd.DataFrame]:
     ex = getattr(ccxt, EXCHANGE)({"enableRateLimit": True})
     markets = ex.load_markets()
-    candidates = sorted(
-        m["symbol"] for m in markets.values()
-        if m["quote"] == "USD" and m.get("spot", True) and m["base"] not in BIG | STABLE)
-    log.info("%d candidate small-coin USD markets (active and delisted)", len(candidates))
+    usd = [m for m in markets.values()
+           if m["quote"] == "USD" and m.get("spot", True) and m["base"] not in BIG | STABLE]
+    # Active coins: only download the ones whose current volume is in range. Delisted coins have no
+    # current volume; keep them all so dead coins still count against the strategy.
+    try:
+        tickers = ex.fetch_tickers([m["symbol"] for m in usd if m.get("active", True)])
+    except Exception as exc:
+        log.warning("no tickers (%s); downloading every candidate", exc)
+        tickers = {}
+    candidates = []
+    for m in usd:
+        t = tickers.get(m["symbol"])
+        if not m.get("active", True) or not tickers:
+            candidates.append(m["symbol"])
+        elif t and (t.get("quoteVolume") or (t.get("baseVolume") or 0) * (t.get("last") or 0)) >= MIN_DAILY_USD / 2:
+            candidates.append(m["symbol"])
+    candidates.sort()
+    log.info("%d of %d small-coin USD markets worth downloading (active in range + delisted)", len(candidates), len(usd))
     step = _timeframe_seconds(TIMEFRAME) * 1000
     since_ms = ex.parse8601(f"{since}T00:00:00Z")
     out = {}
-    for sym in candidates:
+    for i, sym in enumerate(candidates, 1):
+        if i % 25 == 0:
+            log.info("downloaded %d/%d", i, len(candidates))
         path = CACHE / f"{EXCHANGE}_{sym.replace('/', '-')}_{TIMEFRAME}.csv"
         if path.exists() and not refresh:
             df = pd.read_csv(path, index_col=0)
