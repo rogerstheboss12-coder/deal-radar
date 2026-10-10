@@ -10,3 +10,4 @@ crypto-bot/backtest.json
 .pytest_cache/
 crypto-bot/guard-*.json
 crypto-bot/lottery.json
+crypto-bot/patterns.json

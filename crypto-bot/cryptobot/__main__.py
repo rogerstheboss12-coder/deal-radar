@@ -122,6 +122,19 @@ def cmd_lottery(args, s: Settings) -> None:
         print(f"  {coin}: {d['winning_days']} of {d['days']} days ({d['pct']}%)")
 
 
+def cmd_patterns(args, s: Settings) -> None:
+    from . import patterns  # needs scikit-learn
+    history = {}
+    for sym in args.coins.split(","):
+        try:
+            history[sym] = data.load_or_fetch(args.source, sym, "1h", args.since, args.refresh)
+        except Exception as exc:
+            logging.warning("skipping %s: %s", sym, exc)
+    rows = patterns.run(history)
+    Path(args.out).write_text(json.dumps(rows, indent=2))
+    print(patterns.table(rows))
+
+
 def cmd_trade(args, s: Settings) -> None:
     allow_live = os.environ.get("CRYPTOBOT_ALLOW_LIVE", "").lower() == "yes"
     dry_run = args.dry_run or (args.mode == "live" and not allow_live)
@@ -157,6 +170,13 @@ def main(argv: list[str] | None = None) -> None:
     lt.add_argument("--refresh", action="store_true")
     lt.add_argument("--out", default=str(ROOT / "lottery.json"))
 
+    pt = sub.add_parser("patterns", help="machine-learning pattern search on hourly candles, walk-forward tested")
+    pt.add_argument("--source", default="bitstamp")
+    pt.add_argument("--coins", default="BTC/USD,ETH/USD,XRP/USD")
+    pt.add_argument("--since", default="2018-01-01")
+    pt.add_argument("--refresh", action="store_true")
+    pt.add_argument("--out", default=str(ROOT / "patterns.json"))
+
     tr = sub.add_parser("trade", help="run one trading pass")
     tr.add_argument("--mode", choices=["paper", "live"], default="paper")
     tr.add_argument("--dry-run", action="store_true", help="show the orders without placing them")
@@ -164,7 +184,7 @@ def main(argv: list[str] | None = None) -> None:
 
     args = parser.parse_args(argv)
     s = Settings.from_env()
-    {"backtest": cmd_backtest, "lottery": cmd_lottery, "trade": cmd_trade}[args.cmd](args, s)
+    {"backtest": cmd_backtest, "lottery": cmd_lottery, "patterns": cmd_patterns, "trade": cmd_trade}[args.cmd](args, s)
 
 
 if __name__ == "__main__":

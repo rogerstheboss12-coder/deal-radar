@@ -197,3 +197,23 @@ def test_lottery_compounds_wins():
     h, l = np.maximum(o, c), np.minimum(o, c)
     final, peak = lottery.simulate(o, h, l, c, np.ones(4), 1, 4, 3)
     assert final > 100 * (1 + 3 * 0.331) * 0.95 and peak >= final
+
+
+def test_pattern_search_finds_a_planted_pattern_and_not_noise():
+    from cryptobot import patterns
+
+    def hourly(seed, plant):
+        idx = pd.date_range("2018-01-01", periods=24 * 365 * 3, freq="h", tz="UTC")
+        r = np.random.default_rng(seed).normal(0, 0.006, len(idx))
+        if plant:
+            r[idx.hour == 17] += 0.004
+        c = 100 * np.exp(np.cumsum(r))
+        o = np.r_[c[0], c[:-1]]
+        return pd.DataFrame({"open": o, "high": np.maximum(o, c), "low": np.minimum(o, c), "close": c,
+                             "volume": 1.0 + np.abs(r)}, index=idx)
+
+    for plant in (True, False):
+        df = hourly(5, plant)
+        pred = patterns.walk_forward(df, patterns.features(df), 4, shuffle=False)
+        lift = pred.groupby(pred.index.hour)["p_up"].mean()
+        assert (lift.loc[12:15].min() > 0.58) == plant
