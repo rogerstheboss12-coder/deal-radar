@@ -4,3 +4,7 @@ deal-radar.html
 out/
 .env
 __pycache__/
+crypto-bot/data/
+crypto-bot/paper.json
+crypto-bot/backtest.json
+.pytest_cache/

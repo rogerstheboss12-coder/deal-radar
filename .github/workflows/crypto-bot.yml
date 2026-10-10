@@ -1,0 +1,80 @@
+name: Crypto bot
+
+on:
+  push:
+    paths: ["crypto-bot/**", ".github/workflows/crypto-bot.yml"]
+  schedule:
+    - cron: "7 0 * * *"   # daily, 7 minutes after the UTC daily candle closes (runs from the default branch only)
+  workflow_dispatch:
+    inputs:
+      task:
+        description: What to run
+        type: choice
+        options: [backtest, paper, live]
+        default: backtest
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crypto-bot-${{ github.ref }}
+  cancel-in-progress: false   # never interrupt a run that may be placing orders
+
+defaults:
+  run:
+    working-directory: crypto-bot
+
+jobs:
+  backtest:
+    if: github.event_name == 'push' || inputs.task == 'backtest'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet -r requirements.txt
+      - run: python -m pytest -q
+      - name: Backtest on real history
+        run: python -m cryptobot backtest | tee backtest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backtest
+          path: crypto-bot/backtest.json
+
+  trade:
+    if: github.event_name == 'schedule' || inputs.task == 'paper' || inputs.task == 'live'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CRYPTOBOT_API_KEY: ${{ secrets.CRYPTOBOT_API_KEY }}
+      CRYPTOBOT_API_SECRET: ${{ secrets.CRYPTOBOT_API_SECRET }}
+      CRYPTOBOT_ALLOW_LIVE: ${{ vars.CRYPTOBOT_ALLOW_LIVE }}   # repo variable; "yes" = real orders
+      CRYPTOBOT_HALT: ${{ vars.CRYPTOBOT_HALT }}               # repo variable; "yes" = stop trading
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet -r requirements.txt
+
+      # Paper account: the ledger lives in the Actions cache between runs.
+      - uses: actions/cache/restore@v4
+        if: github.event_name == 'schedule' || inputs.task == 'paper'
+        with:
+          path: crypto-bot/paper.json
+          key: paper-ledger-${{ github.run_id }}
+          restore-keys: paper-ledger-
+      - name: Paper trade
+        if: github.event_name == 'schedule' || inputs.task == 'paper'
+        run: python -m cryptobot trade --mode paper
+      - uses: actions/cache/save@v4
+        if: github.event_name == 'schedule' || inputs.task == 'paper'
+        with:
+          path: crypto-bot/paper.json
+          key: paper-ledger-${{ github.run_id }}
+
+      - name: Live trade
+        if: (github.event_name == 'schedule' || inputs.task == 'live') && env.CRYPTOBOT_API_KEY != ''
+        run: python -m cryptobot trade --mode live
