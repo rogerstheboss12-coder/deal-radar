@@ -135,6 +135,16 @@ def cmd_patterns(args, s: Settings) -> None:
     print(patterns.table(rows))
 
 
+def cmd_micro(args, s: Settings) -> None:
+    from . import micro  # needs scikit-learn
+    history = micro.fetch_all(args.since, args.refresh)
+    universe = micro.pick_universe(history)
+    btc = data.load_or_fetch(micro.EXCHANGE, "BTC/USD", micro.TIMEFRAME, args.since, args.refresh)
+    result = micro.run(universe, btc)
+    Path(args.out).write_text(json.dumps(result, indent=2))
+    print(micro.table(result))
+
+
 def cmd_trade(args, s: Settings) -> None:
     allow_live = os.environ.get("CRYPTOBOT_ALLOW_LIVE", "").lower() == "yes"
     dry_run = args.dry_run or (args.mode == "live" and not allow_live)
@@ -177,6 +187,11 @@ def main(argv: list[str] | None = None) -> None:
     pt.add_argument("--refresh", action="store_true")
     pt.add_argument("--out", default=str(ROOT / "patterns.json"))
 
+    mc = sub.add_parser("micro", help="pattern search across many small coins on Coinbase")
+    mc.add_argument("--since", default="2019-01-01")
+    mc.add_argument("--refresh", action="store_true")
+    mc.add_argument("--out", default=str(ROOT / "micro.json"))
+
     tr = sub.add_parser("trade", help="run one trading pass")
     tr.add_argument("--mode", choices=["paper", "live"], default="paper")
     tr.add_argument("--dry-run", action="store_true", help="show the orders without placing them")
@@ -184,7 +199,8 @@ def main(argv: list[str] | None = None) -> None:
 
     args = parser.parse_args(argv)
     s = Settings.from_env()
-    {"backtest": cmd_backtest, "lottery": cmd_lottery, "patterns": cmd_patterns, "trade": cmd_trade}[args.cmd](args, s)
+    {"backtest": cmd_backtest, "lottery": cmd_lottery, "patterns": cmd_patterns, "micro": cmd_micro,
+     "trade": cmd_trade}[args.cmd](args, s)
 
 
 if __name__ == "__main__":

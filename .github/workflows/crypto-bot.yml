@@ -69,6 +69,28 @@ jobs:
           name: patterns
           path: crypto-bot/patterns.json
 
+  micro:
+    if: github.event_name == 'push' || inputs.task == 'backtest'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet -r requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: crypto-bot/data
+          key: small-coin-candles-${{ github.run_id }}
+          restore-keys: small-coin-candles-
+      - name: Small-coin pattern search (Coinbase, 6h candles, walk-forward)
+        run: python -m cryptobot micro
+      - uses: actions/upload-artifact@v4
+        with:
+          name: micro
+          path: crypto-bot/micro.json
+
   trade:
     if: github.event_name == 'schedule' || inputs.task == 'paper' || inputs.task == 'live'
     runs-on: ubuntu-latest

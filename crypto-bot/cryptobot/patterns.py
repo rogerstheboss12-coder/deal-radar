@@ -60,6 +60,7 @@ def walk_forward(df: pd.DataFrame, feats: pd.DataFrame, horizon: int, shuffle: b
     data = feats.assign(fwd=fwd).dropna()
     y = (data["fwd"] > 0).astype(int)
     X = data.drop(columns="fwd")
+    X = X.loc[:, X.notna().any()]
     rng = np.random.default_rng(seed)
 
     start = data.index[0] + pd.DateOffset(years=TRAIN_YEARS)

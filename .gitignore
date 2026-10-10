@@ -11,3 +11,4 @@ crypto-bot/backtest.json
 crypto-bot/guard-*.json
 crypto-bot/lottery.json
 crypto-bot/patterns.json
+crypto-bot/micro.json

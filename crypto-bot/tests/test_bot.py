@@ -217,3 +217,30 @@ def test_pattern_search_finds_a_planted_pattern_and_not_noise():
         pred = patterns.walk_forward(df, patterns.features(df), 4, shuffle=False)
         lift = pred.groupby(pred.index.hour)["p_up"].mean()
         assert (lift.loc[12:15].min() > 0.58) == plant
+
+
+def test_micro_pipeline_finds_planted_cross_coin_pattern():
+    """Coins that rose most over the last day keep rising the next 6h: the model should exploit it,
+    clear the costs, and beat random picks and the shuffled-label baseline."""
+    from cryptobot import micro
+
+    idx = pd.date_range("2019-01-01", periods=4 * 365 * 3, freq="6h", tz="UTC")
+    rng = np.random.default_rng(3)
+    n_coins = 12
+    r = rng.normal(0, 0.03, (len(idx), n_coins))
+    for t in range(4, len(idx)):
+        past = r[t - 4:t].sum(axis=0)
+        r[t] += np.where(past >= np.sort(past)[-2], 0.04, 0)  # top-2 momentum persists, strongly
+    universe = {}
+    for k in range(n_coins):
+        c = 10 * np.exp(np.cumsum(r[:, k]))
+        o = np.r_[c[0], c[:-1]]
+        universe[f"C{k}/USD"] = pd.DataFrame({"open": o, "high": np.maximum(o, c), "low": np.minimum(o, c),
+                                              "close": c, "volume": 1e5}, index=idx)
+    p = micro.panel(universe, None, 1)
+    real = micro.walk_forward(p, 1, shuffle=False)
+    fake = micro.walk_forward(p, 1, shuffle=True, seed=1)
+    model = micro.trade(real, 1, 0.55)["final"]
+    assert model > 1_000
+    assert model > micro.trade(fake, 1, 0.55)["final"] * 10
+    assert model > micro.trade(real, 1, None, np.random.default_rng(0))["final"] * 10
